@@ -1,6 +1,12 @@
 # DJB-Toolkit
 DJB Tensorflow Toolkit - Collection of methods and classes for easier TF CNN implementations
 
+### Development
+
+To do any form of development on this project without having to reinstall it through `pip` after every change I recommend running `pip install --editable .` in this project's root directory.
+
+This installs `DJB-Toolkit` through pip into site-packages but keept it up to date with this repo via symlink (kind of). Now you can safely and easily work on `DJB-Toolkit`. 
+
 ### Example TFModel subclass implementation
 
 ```python
@@ -105,4 +111,142 @@ class TF_Conv7_Conv5_Conv3(TFModel):
                                                               output_features=self.classifications)
 
     return y_conv, y_convsm, keep_prob
+```
+
+### Example settings.json
+
+```json
+{
+    "excluded_patients": ["MrClean100", "MrClean163", "MrClean405", "MrClean482"],
+
+    "api_keys": {
+        "slack": "https://hooks.slack.com/services/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"
+    },
+
+    "default_values": {
+        "tf_model": {
+            "log_dir": "R:\\Douwe\\Tensorflow\\log_data",
+            "save_dir": "R:\\Douwe\\Tensorflow\\trained_models",
+            "patch_dir": "R:\\Douwe\\CT_Scans\\Numpy_Patches\\Patch_Cache",
+            "selected_patch_dir": "R:\\Douwe\\CT_Scans\\Numpy_Patches\\Patch_Selection",
+            "classifying_mask": "R:\\Douwe\\MNI_atlasses\\MNI_atlasses\\TOFatlas_match_nii\\TOFsegs_mean_zcorr_clean_masked_closed_v3.mhd"
+        },
+
+        "tools": {
+            "cta_folder": "R:\\Douwe\\CT_scans\\CTA_postElastix_mipped\\",
+            "ncct_folder": "R:\\Douwe\\CT_scans\\NCCT_postElastix_mipped\\",
+            "tm_folder": "R:\\Douwe\\CT_scans\\TM_postElastix_mipped\\"
+        }
+    },
+
+    "input_channels": {
+        "type_a": {
+            "3d": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "ROI_{}_th.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "ROI_{}_th_flipped.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\NCCT_postElastix_mipped",
+                    "filename": "ROI_{}_th.mhd"
+                }
+            ],
+            "axiaal": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal_flipped.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\NCCT_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal.mhd"
+                }
+            ]
+        },
+
+        "type_b": {
+            "axiaal": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal_flipped.mhd"
+                }
+            ]
+        },
+
+        "type_c": {
+            "axiaal": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\NCCT_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal.mhd"
+                }
+            ]
+        },
+
+        "type_d": {
+            "axiaal": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_frangi_axiaal.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_frangi_axiaal_flipped.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\NCCT_postElastix_mipped",
+                    "filename": "MIP_{}_th_axiaal.mhd"
+                }
+            ]
+        },
+
+        "type_e": {
+            "axiaal": [
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_frangi_axiaal.mhd"
+                },
+                {
+                    "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+                    "filename": "MIP_{}_frangi_axiaal_flipped.mhd"
+                }
+            ]
+        }
+    },
+    
+    "brain_mask_channel": {
+        "3d": {
+            "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+            "filename": "ROI_{}_th_mask.mhd"
+        },
+
+        "axiaal": {
+            "path": "R:\\Douwe\\CT_Scans\\CTA_postElastix_mipped",
+            "filename": "MIP_{}_th_axiaal_mask.mhd"
+        }
+    },
+    
+    "class_mask_channel": {
+        "3d": {
+            "path": "R:\\Douwe\\CT_Scans\\TM_postElastix",
+            "filename": "result_eroded.mhd"
+        },
+
+        "axiaal": {
+            "path": "R:\\Douwe\\CT_Scans\\TM_postElastix_mipped",
+            "filename": "MIP_{}_th_axiaal.mhd"
+        }
+    }
+}
+
 ```
