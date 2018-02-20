@@ -18,7 +18,11 @@ import djb_toolkit
 ## Data import
 
 def get_settings():
-  """Get settings defined in settings.json file"""
+  """Get settings defined in settings.json file
+
+    Run djb_toolkit.setup with a settings file path first.
+    
+    Otherwise this function will return `None`"""
 
   if not djb_toolkit.SETTINGS_FILE:
     return None
