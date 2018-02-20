@@ -1,6 +1,12 @@
 # DJB-Toolkit
 DJB Tensorflow Toolkit - Collection of methods and classes for easier TF CNN implementations
 
+### Development
+
+To do any form of development on this project without having to reinstall it through `pip` after every change I recommend running `pip install --editable .` in this project's root directory.
+
+This installs `DJB-Toolkit` through pip into site-packages but keept it up to date with this repo via symlink (kind of). Now you can safely and easily work on `DJB-Toolkit`. 
+
 ### Example TFModel subclass implementation
 
 ```python
