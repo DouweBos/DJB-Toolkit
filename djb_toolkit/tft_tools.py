@@ -20,6 +20,9 @@ import djb_toolkit
 def get_settings():
   """Get settings defined in settings.json file"""
 
+  if not djb_toolkit.SETTINGS_FILE:
+    return None
+
   json_data = open(djb_toolkit.SETTINGS_FILE)
   settings = json.load(json_data)
   return settings
