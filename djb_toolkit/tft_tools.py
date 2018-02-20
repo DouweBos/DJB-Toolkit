@@ -5,7 +5,6 @@
 # pylint: disable=too-many-arguments
 
 import os
-from os.path import join, dirname
 import json
 from math import floor, ceil
 from itertools import product
@@ -14,13 +13,14 @@ import requests
 import numpy as np
 import openpyxl
 
+from djb_toolkit import SETTINGS_FILE
+
 ## Data import
 
 def get_settings():
   """Get settings defined in settings.json file"""
 
-  script_dir = dirname(os.path.realpath(__file__))
-  json_data = open(join(script_dir, 'djb_toolkit_settings.json'))
+  json_data = open(SETTINGS_FILE)
   settings = json.load(json_data)
   return settings
 
