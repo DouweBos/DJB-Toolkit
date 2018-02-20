@@ -13,14 +13,14 @@ import requests
 import numpy as np
 import openpyxl
 
-from djb_toolkit import SETTINGS_FILE
+import djb_toolkit
 
 ## Data import
 
 def get_settings():
   """Get settings defined in settings.json file"""
 
-  json_data = open(SETTINGS_FILE)
+  json_data = open(djb_toolkit.SETTINGS_FILE)
   settings = json.load(json_data)
   return settings
 
