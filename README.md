@@ -5,7 +5,7 @@ DJB Tensorflow Toolkit - Collection of methods and classes for easier TF CNN imp
 
 To do any form of development on this project without having to reinstall it through `pip` after every change I recommend running `pip install --editable .` in this project's root directory.
 
-This installs `DJB-Toolkit` through pip into site-packages but keept it up to date with this repo via symlink (kind of). Now you can safely and easily work on `DJB-Toolkit`. 
+This installs `DJB-Toolkit` through pip into site-packages but keeps it up to date with this repo via symlink (kind of). Now you can safely and easily work on `DJB-Toolkit`. 
 
 ### TODO
 
