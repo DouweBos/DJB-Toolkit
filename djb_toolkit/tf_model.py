@@ -592,7 +592,6 @@ class TFModel(object):
           patches_left -= batch_size
 
       pred_labels = array(pred_labels)
-      print("Pred shape: {}".format(pred_labels.shape))
       output_pred = zeros((0, 0))
 
       if axis == 0:
@@ -693,7 +692,7 @@ class TFModel(object):
 
     sum_dice = []
 
-    for i in range(0, min(4, len(patients))):
+    for i in range(0, len(patients)):
       patient = patients[i]
       print('WIS {}'.format(patient))
 
@@ -770,7 +769,6 @@ class TFModel(object):
             patches_left -= batch_size
 
       pred_labels = array(pred_labels)
-      print("Pred shape: {}".format(pred_labels.shape))
       output_pred = zeros((398, 430, 374))
       output_pred[roi_channel_image.nonzero()] = pred_labels
       del pred_labels
