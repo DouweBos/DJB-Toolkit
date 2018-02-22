@@ -7,6 +7,10 @@ To do any form of development on this project without having to reinstall it thr
 
 This installs `DJB-Toolkit` through pip into site-packages but keept it up to date with this repo via symlink (kind of). Now you can safely and easily work on `DJB-Toolkit`. 
 
+### TODO
+
+- [ ] Write tests to prevent session from crashing after training etc (this fucks up my results in the excel sheet)
+
 ### Example TFModel subclass implementation
 
 ```python
