@@ -121,8 +121,7 @@ setup(
                       'openpyxl',
                       'numpy',
                       'SimpleITK',
-                      'scikit_learn',
-                      'tensorflow'],  # Optional
+                      'scikit_learn'],  # Optional
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
