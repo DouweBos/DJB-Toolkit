@@ -279,8 +279,6 @@ class TFModel(object):
                        checkpoint_dir=checkpoint_dir,
                        saver=saver)
 
-    
-
     # Save trained path to checkpoint dir
     save_path = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt')
 
@@ -411,6 +409,8 @@ class TFModel(object):
     # Close writers to prevent crash in next session
     train_writer.close()
     test_writer.close()
+
+    return save_path, test_accuracy_avg, dice_avg 
 
   # pylint: disable=C0103
   def __train_graph(self,
