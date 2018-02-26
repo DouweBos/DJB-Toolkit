@@ -304,29 +304,29 @@ class TFModel(object):
 
     print('Final test accuracy %g' % test_accuracy_avg)
 
-    for i in range(train_data.num_examples):
-      print(i)
-
-      batch = train_data.images[i:i+1]
-
-      pred = sess.run(prediction,
-                      feed_dict={
-                          x: batch,                                         # pylint: disable=C0330
-                          y_: ones((batch.shape[0],                      # pylint: disable=C0330
-                                    len(self.classifying_threshold))),   # pylint: disable=C0330
-                          keep_prob: 1.0,                                   # pylint: disable=C0330
-                          class_th: self.classifying_threshold
-                      })
-
-      print(str(pred) + ' - ' + str(train_data.labels[i:i+1]))
-
-    del train_data
-
     # Post 'finished testing' to my personal slack
     tft_tools.post_to_slack((self.graph_name
                              + ' finished testing.\n'
                              + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
                              + 'Average testing accuracy: ' + str(test_accuracy_avg)))
+
+    # for i in range(train_data.num_examples):
+    #   print(i)
+
+    #   batch = train_data.images[i:i+1]
+
+    #   pred = sess.run(prediction,
+    #                   feed_dict={
+    #                       x: batch,                                         # pylint: disable=C0330
+    #                       y_: ones((batch.shape[0],                      # pylint: disable=C0330
+    #                                 len(self.classifying_threshold))),   # pylint: disable=C0330
+    #                       keep_prob: 1.0,                                   # pylint: disable=C0330
+    #                       class_th: self.classifying_threshold
+    #                   })
+
+    #   print(str(pred) + ' - ' + str(train_data.labels[i:i+1]))
+
+    del train_data
 
     # Calculate post training dice score
     dice_avg = 0.0
@@ -379,11 +379,6 @@ class TFModel(object):
     classifying_threshold_str = ', '.join(['{:.2f}'.format(x)
                                            for x in self.classifying_threshold])
 
-    checkpoint_graph = ''
-
-    if self.restore_checkpoint:
-      checkpoint_graph = os.path.basename(os.path.normpath(self.restore_checkpoint))
-
     #Write results to excel sheet
     tft_tools.write_tf_results(graph=self.graph_name,
                                start_date=start.isoformat(),
@@ -401,7 +396,7 @@ class TFModel(object):
                                classifying_threshold=classifying_threshold_str,
                                post_proc_min_count=self.post_proc_min_count,
                                post_proc_patch_size=self.post_proc_patch_size,
-                               restore_checkpoint=checkpoint_graph,
+                               restore_checkpoint=str(self.restore_checkpoint),
                                custom_settings=self.get_custom_settings())
 
     tft_tools.post_to_slack(self.get_graph_settings(test_accuracy_avg=test_accuracy_avg,
@@ -692,7 +687,7 @@ class TFModel(object):
 
     sum_dice = []
 
-    for i in range(0, len(patients)):
+    for i in range(0, min(4, len(patients))):
       patient = patients[i]
       print('WIS {}'.format(patient))
 
