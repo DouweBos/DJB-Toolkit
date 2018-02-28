@@ -725,7 +725,7 @@ class TFModel(object):
       pred_labels = []
 
       for j in range(0, pat_batches):
-        print("Patient batch: {}".format(i))
+        print("Patient batch: {}".format(j))
 
         floor = j * pat_batch_size
         ceil = min((j+1) * pat_batch_size, roi_channel_coord_a.shape[0])
