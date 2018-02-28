@@ -8,6 +8,7 @@ import os
 from os.path import join
 import math
 from datetime import datetime
+from time import time
 
 import tensorflow as tf
 from numpy import ones, array, average, amax, zeros, mean, unique, int16, transpose, concatenate
@@ -430,6 +431,9 @@ class TFModel(object):
     """Train graph with given train data"""
 
     if not self.skip_training:
+      start_time = int(time())
+      print("Started training at {}".format(start_time))
+
       #Train with `epochs` of batches
       for i in range(self.epochs):
         batch = train_data.next_batch(self.batch_size)
@@ -445,7 +449,17 @@ class TFModel(object):
                                              })
 
           test_writer.add_summary(summary, i)
-          print('Step %d, training accuracy %g' % (i, train_accuracy))
+          if i > 0:
+            current_time = int(time())
+
+            avg_time_per_epoch = (current_time - start_time) / i
+
+            expected_time_left = (self.epochs - i) * avg_time_per_epoch
+
+            expected_end_timestamp = current_time + expected_time_left
+            expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp) , end='')
 
         summary, _ = sess.run([merged, train_step],
                               feed_dict={
