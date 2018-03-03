@@ -692,7 +692,7 @@ class TFModel(object):
 
     roi_channel_image = sitk.ReadImage(roi_channel)
     roi_channel_image = sitk.GetArrayFromImage(roi_channel_image)
-    roi_channel_coord = transpose((roi_channel_image).nonzero())[::4]
+    roi_channel_coord = transpose((roi_channel_image).nonzero())#[::4]
 
     roi_channel_coord_a = roi_channel_coord[:, [1, 2]]
     roi_channel_coord_c = roi_channel_coord[:, [0, 2]]
@@ -725,7 +725,7 @@ class TFModel(object):
       pred_labels = []
 
       for j in range(0, pat_batches):
-        print("Patient batch: {}".format(j))
+        print("Patient batch: {}".format(j), end='')
 
         floor = j * pat_batch_size
         ceil = min((j+1) * pat_batch_size, roi_channel_coord_a.shape[0])
