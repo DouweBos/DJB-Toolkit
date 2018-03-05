@@ -11,6 +11,19 @@ This installs `DJB-Toolkit` through pip into site-packages but keeps it up to da
 
 - [ ] Write tests to prevent session from crashing after training etc (this fucks up my results in the excel sheet)
 
+### Setup
+
+Before doing anything with the toolkit run the `setup` method first with a direct path to your implementation of the settings file.
+
+```python
+djb_toolkit.setup(settings_file='R:\\Douwe\\DJB-BMEP\\Tensorflow\\djb_toolkit_settings.json')
+```
+  #### TODO
+
+  - [ ] Make a default settings file so stuff does not crash
+
+  - [ ] Make some docs or auto generate them or whatever so it's clear what users can put in the settings file.
+
 ### Example TFModel subclass implementation
 
 ```python
