@@ -18,11 +18,11 @@ Before doing anything with the toolkit run the `setup` method first with a direc
 ```python
 djb_toolkit.setup(settings_file='R:\\Douwe\\DJB-BMEP\\Tensorflow\\djb_toolkit_settings.json')
 ```
-#### TODO
+  #### TODO
 
-- [ ] Make a default settings file so stuff does not crash
+  - [ ] Make a default settings file so stuff does not crash
 
-- [ ] Make some docs or auto generate them or whatever so it's clear what users can put in the settings file.
+  - [ ] Make some docs or auto generate them or whatever so it's clear what users can put in the settings file.
 
 ### Example TFModel subclass implementation
 
