@@ -729,9 +729,9 @@ class TFModel(object):
       for j in range(0, pat_batches):
         if j > 0:
           current_time = int(time())
-          avg_time_per_epoch = (current_time - start_time) / j
+          avg_time_per_batch = (current_time - start_time) / j
 
-          expected_time_left = (self.pat_batches - j) * avg_time_per_epoch
+          expected_time_left = (pat_batches - j) * avg_time_per_batch
 
           expected_end_timestamp = current_time + expected_time_left
           expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
