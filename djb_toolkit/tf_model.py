@@ -703,7 +703,7 @@ class TFModel(object):
 
     for i in range(0, min(4, len(patients))):
       patient = patients[i]
-      print('WIS {}'.format(patient))
+      print('WIS {}: 0%\tETA: N/A'.format(patient), end='\r', flush=True)
 
       image_filepaths = []
 
@@ -724,8 +724,19 @@ class TFModel(object):
       pat_batch_size = math.ceil(roi_channel_coord_a.shape[0]/pat_batches)
       pred_labels = []
 
+      start_time = int(time())
+
       for j in range(0, pat_batches):
-        print("Patient batch: {}".format(j), end='\r', flush=True)
+        if i > 0:
+          current_time = int(time())
+          avg_time_per_epoch = (current_time - start_time) / i
+
+          expected_time_left = (self.epochs - i) * avg_time_per_epoch
+
+          expected_end_timestamp = current_time + expected_time_left
+          expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+          print('WIS {}: {}%\tETA: {}'.format(patient, int((j+1)/pat_batches*100), expected_end_timestamp), end='\r', flush=True)
 
         floor = j * pat_batch_size
         ceil = min((j+1) * pat_batch_size, roi_channel_coord_a.shape[0])
@@ -814,5 +825,7 @@ class TFModel(object):
                                      +  '.mhd')
                           )
                      )
+
+      print('\n')
 
     return average(array(sum_dice))
