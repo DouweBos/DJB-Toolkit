@@ -62,30 +62,6 @@ def remove_noice_classifications_2d(post_proc_patch_size, post_proc_min_count, m
 
   return modified_matrix
 
-def remove_noice_classifications_3d(post_proc_patch_size, post_proc_min_count, matrix):
-  """Remove ingle prediction labels in given matrix if sum in given
-     size is less than given min count"""
-
-  modified_matrix = np.copy(matrix)
-
-  iter_z = list(range(0, modified_matrix.shape[0])) #list of all possible y indices
-  iter_y = list(range(0, modified_matrix.shape[1])) #list of all possible x indices
-  iter_x = list(range(0, modified_matrix.shape[2])) #list of all possible x indices
-  iter_zyx = list(product(iter_z, iter_y, iter_x))  #list of all possible yx indice combinations
-
-  min_c = post_proc_min_count
-  min_zyx = floor(post_proc_patch_size/2.0)
-  max_zyx = ceil(post_proc_patch_size/2.0)
-
-  single_pixels = [label_count_threshold(y, x, min_zyx, max_zyx, modified_matrix, min_c)
-                   for z, y, x in iter_zyx]
-
-  single_pixels_indices = np.array(single_pixels).reshape(modified_matrix.shape[0],
-                                                          modified_matrix.shape[1]).nonzero()
-  modified_matrix[single_pixels_indices] = 0
-
-  return modified_matrix
-
 def label_count_threshold(y, x, min_yx, max_yx, matrix, min_c):
   """Sum prediction label over range in matrix"""
 
