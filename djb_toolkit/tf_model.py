@@ -826,6 +826,6 @@ class TFModel(object):
                           )
                      )
 
-      print('\n')
+      print('')
 
     return average(array(sum_dice))
