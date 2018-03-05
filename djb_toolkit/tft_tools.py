@@ -134,7 +134,7 @@ def write_tf_results(graph=None,
                     post_proc_min_count,
                     restore_checkpoint,
                     custom_settings
-                    ])
+                   ])
 
   workbook.save('tensorflow_results.xlsx')
 
@@ -160,7 +160,10 @@ def represents_int(s):
     return False
 
 def axis_str_to_int(axis):
-  """Convert axis string into an xyz axis integer"""
+  """Convert axis string into an xyz axis integer.
+
+    Returns -1 if axis is not found and given argument is not representable as an Integer
+  """
 
   if axis.lower() == 'axiaal':
     return 0
