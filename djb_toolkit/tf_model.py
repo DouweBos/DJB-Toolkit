@@ -8,6 +8,7 @@ import os
 from os.path import join
 import math
 from datetime import datetime
+from time import time
 
 import tensorflow as tf
 from numpy import ones, array, average, amax, zeros, mean, unique, int16, transpose, concatenate
@@ -279,8 +280,6 @@ class TFModel(object):
                        checkpoint_dir=checkpoint_dir,
                        saver=saver)
 
-    
-
     # Save trained path to checkpoint dir
     save_path = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt')
 
@@ -304,29 +303,29 @@ class TFModel(object):
 
     print('Final test accuracy %g' % test_accuracy_avg)
 
-    for i in range(train_data.num_examples):
-      print(i)
-
-      batch = train_data.images[i:i+1]
-
-      pred = sess.run(prediction,
-                      feed_dict={
-                          x: batch,                                         # pylint: disable=C0330
-                          y_: ones((batch.shape[0],                      # pylint: disable=C0330
-                                    len(self.classifying_threshold))),   # pylint: disable=C0330
-                          keep_prob: 1.0,                                   # pylint: disable=C0330
-                          class_th: self.classifying_threshold
-                      })
-
-      print(str(pred) + ' - ' + str(train_data.labels[i:i+1]))
-
-    del train_data
-
     # Post 'finished testing' to my personal slack
     tft_tools.post_to_slack((self.graph_name
                              + ' finished testing.\n'
                              + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
                              + 'Average testing accuracy: ' + str(test_accuracy_avg)))
+
+    # for i in range(train_data.num_examples):
+    #   print(i)
+
+    #   batch = train_data.images[i:i+1]
+
+    #   pred = sess.run(prediction,
+    #                   feed_dict={
+    #                       x: batch,                                         # pylint: disable=C0330
+    #                       y_: ones((batch.shape[0],                      # pylint: disable=C0330
+    #                                 len(self.classifying_threshold))),   # pylint: disable=C0330
+    #                       keep_prob: 1.0,                                   # pylint: disable=C0330
+    #                       class_th: self.classifying_threshold
+    #                   })
+
+    #   print(str(pred) + ' - ' + str(train_data.labels[i:i+1]))
+
+    del train_data
 
     # Calculate post training dice score
     dice_avg = 0.0
@@ -379,11 +378,6 @@ class TFModel(object):
     classifying_threshold_str = ', '.join(['{:.2f}'.format(x)
                                            for x in self.classifying_threshold])
 
-    checkpoint_graph = ''
-
-    if self.restore_checkpoint:
-      checkpoint_graph = os.path.basename(os.path.normpath(self.restore_checkpoint))
-
     #Write results to excel sheet
     tft_tools.write_tf_results(graph=self.graph_name,
                                start_date=start.isoformat(),
@@ -401,7 +395,7 @@ class TFModel(object):
                                classifying_threshold=classifying_threshold_str,
                                post_proc_min_count=self.post_proc_min_count,
                                post_proc_patch_size=self.post_proc_patch_size,
-                               restore_checkpoint=checkpoint_graph,
+                               restore_checkpoint=str(self.restore_checkpoint),
                                custom_settings=self.get_custom_settings())
 
     tft_tools.post_to_slack(self.get_graph_settings(test_accuracy_avg=test_accuracy_avg,
@@ -411,6 +405,8 @@ class TFModel(object):
     # Close writers to prevent crash in next session
     train_writer.close()
     test_writer.close()
+
+    return save_path, test_accuracy_avg, dice_avg 
 
   # pylint: disable=C0103
   def __train_graph(self,
@@ -430,6 +426,9 @@ class TFModel(object):
     """Train graph with given train data"""
 
     if not self.skip_training:
+      start_time = int(time())
+      print("Started training at {}".format(start_time))
+
       #Train with `epochs` of batches
       for i in range(self.epochs):
         batch = train_data.next_batch(self.batch_size)
@@ -445,7 +444,17 @@ class TFModel(object):
                                              })
 
           test_writer.add_summary(summary, i)
-          print('Step %d, training accuracy %g' % (i, train_accuracy))
+          if i > 0:
+            current_time = int(time())
+
+            avg_time_per_epoch = (current_time - start_time) / i
+
+            expected_time_left = (self.epochs - i) * avg_time_per_epoch
+
+            expected_end_timestamp = current_time + expected_time_left
+            expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp) , end='\r', flush=True)
 
         summary, _ = sess.run([merged, train_step],
                               feed_dict={
@@ -592,7 +601,6 @@ class TFModel(object):
           patches_left -= batch_size
 
       pred_labels = array(pred_labels)
-      print("Pred shape: {}".format(pred_labels.shape))
       output_pred = zeros((0, 0))
 
       if axis == 0:
@@ -684,7 +692,7 @@ class TFModel(object):
 
     roi_channel_image = sitk.ReadImage(roi_channel)
     roi_channel_image = sitk.GetArrayFromImage(roi_channel_image)
-    roi_channel_coord = transpose((roi_channel_image).nonzero())[::4]
+    roi_channel_coord = transpose((roi_channel_image).nonzero())#[::4]
 
     roi_channel_coord_a = roi_channel_coord[:, [1, 2]]
     roi_channel_coord_c = roi_channel_coord[:, [0, 2]]
@@ -695,7 +703,7 @@ class TFModel(object):
 
     for i in range(0, min(4, len(patients))):
       patient = patients[i]
-      print('WIS {}'.format(patient))
+      print('WIS {}: 0%\tETA: N/A'.format(patient), end='\r', flush=True)
 
       image_filepaths = []
 
@@ -716,8 +724,19 @@ class TFModel(object):
       pat_batch_size = math.ceil(roi_channel_coord_a.shape[0]/pat_batches)
       pred_labels = []
 
+      start_time = int(time())
+
       for j in range(0, pat_batches):
-        print("Patient batch: {}".format(i))
+        if j > 0:
+          current_time = int(time())
+          avg_time_per_epoch = (current_time - start_time) / j
+
+          expected_time_left = (self.pat_batches - j) * avg_time_per_epoch
+
+          expected_end_timestamp = current_time + expected_time_left
+          expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+          print('WIS {}: {}%\tETA: {}'.format(patient, int((j+1)/pat_batches*100), expected_end_timestamp), end='\r', flush=True)
 
         floor = j * pat_batch_size
         ceil = min((j+1) * pat_batch_size, roi_channel_coord_a.shape[0])
@@ -770,7 +789,6 @@ class TFModel(object):
             patches_left -= batch_size
 
       pred_labels = array(pred_labels)
-      print("Pred shape: {}".format(pred_labels.shape))
       output_pred = zeros((398, 430, 374))
       output_pred[roi_channel_image.nonzero()] = pred_labels
       del pred_labels
@@ -807,5 +825,7 @@ class TFModel(object):
                                      +  '.mhd')
                           )
                      )
+
+      print('\n')
 
     return average(array(sum_dice))
