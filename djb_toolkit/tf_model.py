@@ -454,7 +454,7 @@ class TFModel(object):
             expected_end_timestamp = current_time + expected_time_left
             expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp) , end='')
+            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp) , end='\r', flush=True)
 
         summary, _ = sess.run([merged, train_step],
                               feed_dict={
@@ -725,7 +725,7 @@ class TFModel(object):
       pred_labels = []
 
       for j in range(0, pat_batches):
-        print("Patient batch: {}".format(j), end='')
+        print("Patient batch: {}".format(j), end='\r', flush=True)
 
         floor = j * pat_batch_size
         ceil = min((j+1) * pat_batch_size, roi_channel_coord_a.shape[0])
