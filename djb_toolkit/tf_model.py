@@ -52,7 +52,8 @@ class TFModel(object):
                batch_size=100,
                num_fc=1024,
                post_proc_patch_size=5,
-               post_proc_min_count=10
+               post_proc_min_count=10,
+               store_hard_patches=True
               ):
     """Init TF Model super class object. Should only be implemented, never used directly.
     """
@@ -105,6 +106,8 @@ class TFModel(object):
     self.patch_selection = patch_selection
     self.axis = axis
 
+    self.store_hard_patches = store_hard_patches
+
     image_input_channels = tft_tools.get_settings()["input_channels"][input_channel_config][axis]
     self.image_input_channels = image_input_channels
 
@@ -113,6 +116,9 @@ class TFModel(object):
 
     class_mask_channel = tft_tools.get_settings()["class_mask_channel"][axis]
     self.class_mask_channel = class_mask_channel
+
+    self.patch_dir = patch_dir
+    self.selected_patches_dir = selected_patches_dir
 
     excluded_patients = tft_tools.get_settings()['excluded_patients']
 
@@ -539,7 +545,8 @@ class TFModel(object):
     training_patients = self.train.patients
     testing_patients = self.test.patients
 
-    patients = list(testing_patients)
+    #patients = list(testing_patients)
+    patients = []
     if segment_training_patients:
       patients.extend(list(training_patients))
 
@@ -658,6 +665,19 @@ class TFModel(object):
                                      +  '.mhd')
                           )
                      )
+
+      if self.store_hard_patches and patient not in testing_patients:
+        tft_data.extract_hard_patches_from_wis(self.selected_patches_dir,
+                                               self.patch_dir,
+                                               self.axis,
+                                               self.image_input_channels,
+                                               self.brain_mask_channel,
+                                               self.class_mask_channel,
+                                               self.patch_selection,
+                                               self.image_size,
+                                               patient,
+                                               output_pred,
+                                               gold_standard_image)
 
     return average(array(sum_dice))
 
