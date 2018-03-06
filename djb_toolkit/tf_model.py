@@ -545,8 +545,7 @@ class TFModel(object):
     training_patients = self.train.patients
     testing_patients = self.test.patients
 
-    #patients = list(testing_patients)
-    patients = []
+    patients = list(testing_patients)
     if segment_training_patients:
       patients.extend(list(training_patients))
 
