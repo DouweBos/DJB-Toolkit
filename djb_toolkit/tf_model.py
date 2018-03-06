@@ -375,7 +375,7 @@ class TFModel(object):
     end = datetime.now()
 
     # Write final results summary to excel sheet and personal slack
-    classifying_threshold_str = ', '.join(['{:.2f}'.format(x)
+    classifying_threshold_str = ', '.join(['{:.5f}'.format(x)
                                            for x in self.classifying_threshold])
 
     #Write results to excel sheet
