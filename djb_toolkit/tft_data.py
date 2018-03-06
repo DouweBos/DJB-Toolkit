@@ -1,6 +1,6 @@
 """Collection of reusable data helper functions."""
 
-from os import mkdir
+from os import mkdir, remove
 from os.path import isdir, isfile, join, basename, normpath
 from pathlib import Path
 import json
@@ -74,7 +74,8 @@ def get_patch_selection(selected_patch_dir,
   missing_files = list(set(existing_files) ^set(files))
 
   if missing_files:
-    new_training_set, new_testing_set = train_test_set_patches(patches_axis_size_dir,
+    new_training_set, new_testing_set = train_test_set_patches(selected_selection_dir,
+                                                               patches_axis_size_dir,
                                                                axis,
                                                                image_input_channels,
                                                                brain_mask_channel,
@@ -112,7 +113,8 @@ def get_patch_selection(selected_patch_dir,
 
   return training_set, testing_set
 
-def train_test_set_patches(patch_cache_location,
+def train_test_set_patches(selected_selection_dir,
+                           patch_cache_location,
                            axis,
                            image_input_channels,
                            brain_mask_channel,
@@ -125,49 +127,59 @@ def train_test_set_patches(patch_cache_location,
   if excluded_patients is not None:
     excluded_patients = np.array(excluded_patients)
 
-  patient_nrs = None
+  train_patients = None
+  test_patients = None
 
-  if patients:  # patient override
-    print('Patient override:\n')
-    print(patients)
+  training_patients_path = join(selected_selection_dir, 'Training_Patients.npy')
+  testing_patients_path = join(selected_selection_dir, 'Testing_Patients.npy')
 
-    patient_nrs = np.array(patients)
-  else:         # loop over patient nrs in input channel dirs
-    for input_channel in image_input_channels:
-      # get all dirs in given input channel path
-      input_channel_path = Path(input_channel['path'])
-      dirs = [f for f in input_channel_path.iterdir() if f.is_dir()]
+  if isfile(training_patients_path) and isfile(testing_patients_path):
+    train_patients = np.load(training_patients_path)
+    test_patients = np.load(testing_patients_path)
+  else:
+    patient_nrs = None
 
-      # get all patient ids listed in input channel
-      new_patients = []
+    if patients:  # patient override
+      print('Patient override:\n')
+      print(patients)
 
-      for pat_dir in dirs:
-        pat_id = basename(normpath(pat_dir))
-        new_patients.append(pat_id)
+      patient_nrs = np.array(patients)
+    else:         # loop over patient nrs in input channel dirs
+      for input_channel in image_input_channels:
+        # get all dirs in given input channel path
+        input_channel_path = Path(input_channel['path'])
+        dirs = [f for f in input_channel_path.iterdir() if f.is_dir()]
 
-      # calculate intersect in arrays so final patient nrs list only contains patients
-      # which are in all of the given input channels
-      if patient_nrs is not None:
-        patient_nrs = np.intersect1d(patient_nrs, np.array(new_patients))
-      else:
-        patient_nrs = np.array(new_patients)
+        # get all patient ids listed in input channel
+        new_patients = []
 
-  patient_nrs.sort()
-  patient_nrs = np.array(patient_nrs)
+        for pat_dir in dirs:
+          pat_id = basename(normpath(pat_dir))
+          new_patients.append(pat_id)
 
-  if excluded_patients is not None:
-    excluded_indices = np.isin(patient_nrs, excluded_patients)
-    patient_nrs = np.delete(patient_nrs, excluded_indices.nonzero(), 0)
+        # calculate intersect in arrays so final patient nrs list only contains patients
+        # which are in all of the given input channels
+        if patient_nrs is not None:
+          patient_nrs = np.intersect1d(patient_nrs, np.array(new_patients))
+        else:
+          patient_nrs = np.array(new_patients)
 
-  indices = np.full(patient_nrs.shape, False, bool)
-  randices = np_random_choice(np.arange(indices.shape[0]),
-                              int(patient_nrs.shape[0]/5.0),
-                              replace=False)
+    patient_nrs.sort()
+    patient_nrs = np.array(patient_nrs)
 
-  indices[randices] = True
+    if excluded_patients is not None:
+      excluded_indices = np.isin(patient_nrs, excluded_patients)
+      patient_nrs = np.delete(patient_nrs, excluded_indices.nonzero(), 0)
 
-  train_patients = patient_nrs[~indices]
-  test_patients = patient_nrs[indices]
+    indices = np.full(patient_nrs.shape, False, bool)
+    randices = np_random_choice(np.arange(indices.shape[0]),
+                                int(patient_nrs.shape[0]/5.0),
+                                replace=False)
+
+    indices[randices] = True
+
+    train_patients = patient_nrs[~indices]
+    test_patients = patient_nrs[indices]
 
   json_image_channels = json.dumps(image_input_channels, sort_keys=True).encode('utf-8')
   input_channel_hash = str(hashlib.md5(json_image_channels).hexdigest())
@@ -578,3 +590,121 @@ def images_to_patches_3d(image_filepaths, patch_size, axis):
   return DataWrapper(return_patches,
                      np.zeros((return_patches.shape[0], return_patches.shape[1], 2)),
                      reshape=False)
+
+def extract_hard_patches_from_wis(selected_patch_dir,
+                                  patch_dir,
+                                  axis,
+                                  image_input_channels,
+                                  brain_mask_channel,
+                                  classification_mask_channel,
+                                  patch_selection,
+                                  patch_size,
+                                  patient,
+                                  prediction,
+                                  gold_standard
+                                 ):
+  """Extract wrongly classified patches from a given network prediction"""
+
+  print("Generating hard patches for {}".format(patient))
+
+  selection = str(patch_selection).zfill(3)
+
+  selected_axis_dir = join(selected_patch_dir, axis)
+  patches_axis_dir = join(patch_dir, axis)
+
+  if not isdir(selected_axis_dir):
+    mkdir(selected_axis_dir)
+
+  if not isdir(patches_axis_dir):
+    mkdir(patches_axis_dir)
+
+  selected_axis_size_dir = join(selected_axis_dir, str(patch_size))
+  patches_axis_size_dir = join(patches_axis_dir, str(patch_size))
+
+  if not isdir(selected_axis_size_dir):
+    mkdir(selected_axis_size_dir)
+
+  if not isdir(patches_axis_size_dir):
+    mkdir(patches_axis_size_dir)
+
+  json_image_channels = json.dumps(image_input_channels, sort_keys=True).encode('utf-8')
+  input_channel_hash = str(hashlib.md5(json_image_channels).hexdigest())
+  selected_input_dir = join(selected_axis_size_dir, input_channel_hash)
+  pat_size_hashed_cache_path = join(patches_axis_size_dir, input_channel_hash)
+
+  if not isdir(selected_input_dir):
+    mkdir(selected_input_dir)
+
+  selected_selection_dir = join(selected_input_dir, 'Selection{}'.format(selection))
+
+  wrong_prediction = prediction is not gold_standard
+
+  current_patches, current_labels = patient_patches(patient,
+                                                    pat_size_hashed_cache_path,
+                                                    image_input_channels,
+                                                    brain_mask_channel,
+                                                    classification_mask_channel,
+                                                    patch_size,
+                                                    axis)
+
+  unique_labels, unique_labels_counts = np.unique(gold_standard, return_counts=True)
+  min_label_occurrence = np.min(unique_labels_counts)
+
+  all_patches = None
+
+  image_filepaths = []
+
+  for input_channel in image_input_channels:
+    image_filepaths.append(join(input_channel['path'],
+                                patient,
+                                input_channel['filename'].format(patient)))
+
+  if axis == '3d':
+    raise NotImplementedError()
+  else:
+    all_patches = images_to_patches_2d(image_filepaths, patch_size)
+
+  for label in unique_labels:
+    current_label_indices = gold_standard == label
+    wrong_label_pred = current_label_indices & wrong_prediction
+    wrong_pred_patches = all_patches.images[wrong_label_pred]
+
+    indices = np.full(wrong_pred_patches.shape[0], False, bool)
+    randices = np_random_choice(np.arange(indices.shape[0]),
+                                min(min_label_occurrence, wrong_pred_patches.shape[0]),
+                                replace=False)
+    indices[randices] = True
+    wrong_pred_patches = wrong_pred_patches[indices]
+    wrong_pred_patches = np.append(wrong_pred_patches,
+                                   np.flip(wrong_pred_patches, 1),
+                                   axis=0)
+
+    if axis == '3d':
+      raise NotImplementedError(0)
+    else:
+      wrong_pred_patches = wrong_pred_patches.reshape((wrong_pred_patches.shape[0],
+                                                       wrong_pred_patches.shape[1] * wrong_pred_patches.shape[2],
+                                                       wrong_pred_patches.shape[3]
+                                                      ))
+
+    if wrong_pred_patches.shape[0] < min_label_occurrence:
+      current_label_patches = current_patches[current_labels == label]
+      indices = np.full(current_label_patches.shape[0], False, bool)
+      randices = np_random_choice(np.arange(indices.shape[0]),
+                                  min_label_occurrence - wrong_pred_patches.shape[0],
+                                  replace=False)
+      indices[randices] = True
+      current_label_patches = current_label_patches[indices]
+
+      wrong_pred_patches = np.append(wrong_pred_patches, current_label_patches, axis=0)
+
+    current_patches[np.argmax(current_labels, axis=1) == label] = wrong_pred_patches
+
+  pat_images_cache_path = join(pat_size_hashed_cache_path, '{}_images.npy'.format(patient))
+
+  np.save(pat_images_cache_path, current_patches)
+
+  selection_training_images_file = join(selected_selection_dir, 'Training_Images.npy')
+
+  if isfile(selection_training_images_file):
+    remove(selection_training_images_file)
