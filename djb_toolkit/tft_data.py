@@ -664,7 +664,7 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   else:
     all_patches = images_to_patches_2d(image_filepaths, patch_size)
 
-  for label in unique_labels:
+  for label in range(1, len(unique_labels)):
     current_label_indices = gold_standard == label
     wrong_label_pred = current_label_indices & wrong_prediction
     wrong_pred_patches = all_patches.images[wrong_label_pred]
@@ -688,7 +688,7 @@ def extract_hard_patches_from_wis(selected_patch_dir,
                                                       ))
 
     if wrong_pred_patches.shape[0] < min_label_occurrence:
-      current_label_patches = current_patches[current_labels == label]
+      current_label_patches = current_patches[np.argmax(current_labels, axis=1) == label]
       indices = np.full(current_label_patches.shape[0], False, bool)
       randices = np_random_choice(np.arange(indices.shape[0]),
                                   min_label_occurrence - wrong_pred_patches.shape[0],

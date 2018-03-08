@@ -11,7 +11,7 @@ from datetime import datetime
 from time import time
 
 import tensorflow as tf
-from numpy import ones, array, average, amax, zeros, mean, unique, int16, transpose, concatenate
+from numpy import ones, array, average, amax, zeros, mean, unique, int16, transpose, concatenate, argmax
 import names
 import SimpleITK as sitk
 
@@ -194,6 +194,18 @@ class TFModel(object):
 
     print('Train data patch count: ', len(train_data.images))
     print('Test data patch count: ', len(test_data.images))
+
+    print('')
+
+    unique_predictions, prediction_counts = unique(argmax(train_data.labels, axis=1),
+                                                   return_counts=True)
+    counts = dict(zip(unique_predictions, prediction_counts))
+    print("Training label counts: {}".format(counts))
+
+    unique_predictions, prediction_counts = unique(argmax(test_data.labels, axis=1),
+                                                   return_counts=True)
+    counts = dict(zip(unique_predictions, prediction_counts))
+    print("Testing label counts: {}".format(counts))
 
     # Create the model
 
@@ -460,7 +472,8 @@ class TFModel(object):
             expected_end_timestamp = current_time + expected_time_left
             expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp) , end='\r', flush=True)
+            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp),
+                  end='\r', flush=True)
 
         summary, _ = sess.run([merged, train_step],
                               feed_dict={
@@ -527,6 +540,7 @@ class TFModel(object):
                                     checkpoint_dir=None,
                                     sess=None,
                                     prediction=None,
+                                    y_convsm=None,
                                     x=None,
                                     y_=None,
                                     keep_prob=None,
@@ -546,6 +560,7 @@ class TFModel(object):
     testing_patients = self.test.patients
 
     patients = list(testing_patients)
+
     if segment_training_patients:
       patients.extend(list(training_patients))
 
@@ -665,7 +680,7 @@ class TFModel(object):
                           )
                      )
 
-      if self.store_hard_patches and patient not in testing_patients:
+      if self.store_hard_patches and patient in training_patients:
         tft_data.extract_hard_patches_from_wis(self.selected_patches_dir,
                                                self.patch_dir,
                                                self.axis,
