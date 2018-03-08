@@ -11,7 +11,9 @@ from datetime import datetime
 from time import time
 
 import tensorflow as tf
-from numpy import ones, array, average, amax, zeros, mean, unique, int16, transpose, concatenate, argmax
+from numpy import ones, array, average, amax, zeros, mean, unique, transpose
+from numpy import concatenate, argmax, full
+from numpy import int16, float64
 import names
 import SimpleITK as sitk
 
@@ -358,6 +360,7 @@ class TFModel(object):
                                                       checkpoint_dir=checkpoint_dir,
                                                       sess=sess,
                                                       prediction=prediction,
+                                                      y_convsm=y_convsm,
                                                       x=x,
                                                       y_=y_,
                                                       keep_prob=keep_prob,
@@ -594,6 +597,7 @@ class TFModel(object):
                                   zeros((image_patches.shape[0], self.classifications)))
 
       pred_labels = []
+      prob_labels = []
       patches_left = image_patches.num_examples
 
       for i in range(0, math.ceil(patches_left/batch_size)):
@@ -604,9 +608,11 @@ class TFModel(object):
 
         if max_batch == 0.0:
           pred_labels.extend(zeros((len(batch))))
+          prob_labels.extend(full((len(batch)), 0.0))
+
           patches_left -= batch_size
         else:
-          pred = sess.run(prediction,
+          pred, prob = sess.run([prediction, y_convsm],
                           feed_dict={
                               x: batch,                                         # pylint: disable=C0330
                               y_: ones((batch.shape[0],                         # pylint: disable=C0330
@@ -617,37 +623,68 @@ class TFModel(object):
           center_pixel_index = int(((patch_size * patch_size) - 1) / 2)
           bool_patches = mean((batch == 0.0)[:, center_pixel_index], axis=1) > 0
           pred[bool_patches] = 0
+          prob[bool_patches] = 0.0
 
           pred_labels.extend(pred)
+          prob_labels.extend(prob)
+
           patches_left -= batch_size
 
       pred_labels = array(pred_labels)
+      prob_labels = array(prob_labels)
+
       output_pred = zeros((0, 0))
+      output_prob = full((len(classifying_threshold), 0, 0), 0.0)
 
       if axis == 0:
         output_pred = zeros((430,
                              374))
+        output_prob = full((len(classifying_threshold),
+                            430,
+                            374), 0.0)
       elif axis == 1:
         output_pred = zeros((398,
                              374))
+        output_prob = full((len(classifying_threshold),
+                            398,
+                            374), 0.0)
       elif axis == 2:
         output_pred = zeros((398,
                              430))
+        output_prob = full((len(classifying_threshold),
+                            398,
+                            430), 0.0)
 
       output_pred[roi_channel_image.nonzero()] = pred_labels
       del pred_labels
 
+      output_prob[:,
+                  roi_channel_image.nonzero()[0],
+                  roi_channel_image.nonzero()[1]] = prob_labels.transpose()
+
+      del prob_labels
+
       if axis == 0:
         output_pred = output_pred.reshape(430,
+                                          374)
+        output_prob = output_prob.reshape(len(classifying_threshold),
+                                          430,
                                           374)
       elif axis == 1:
         output_pred = output_pred.reshape(398,
                                           374)
+        output_prob = output_prob.reshape(len(classifying_threshold),
+                                          398,
+                                          374)
       elif axis == 2:
         output_pred = output_pred.reshape(398,
                                           430)
+        output_prob = output_prob.reshape(len(classifying_threshold),
+                                          398,
+                                          430)
 
       output_pred = output_pred.astype(int16)
+      output_prob = output_prob.astype(float64)
 
       output_pred = tft_tools.remove_noice_classifications_2d(self.post_proc_patch_size,
                                                               self.post_proc_min_count,
@@ -680,17 +717,24 @@ class TFModel(object):
                           )
                      )
 
+      sitk.WriteImage(sitk.GetImageFromArray(output_prob),
+                      join(new_dir, (patient + '_probabilities_'
+                                     + ('testing_' if patient in testing_patients else 'training_')
+                                     + str(thrombus_pixel_count)
+                                     + '_' + str(output_pred_dice)
+                                     +  '.mhd')
+                          )
+                     )
+
       if self.store_hard_patches and patient in training_patients:
         tft_data.extract_hard_patches_from_wis(self.selected_patches_dir,
                                                self.patch_dir,
                                                self.axis,
                                                self.image_input_channels,
-                                               self.brain_mask_channel,
-                                               self.class_mask_channel,
                                                self.patch_selection,
                                                self.image_size,
                                                patient,
-                                               output_pred,
+                                               output_prob,
                                                gold_standard_image)
 
     return average(array(sum_dice))

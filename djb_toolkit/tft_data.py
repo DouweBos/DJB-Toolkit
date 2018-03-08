@@ -595,8 +595,6 @@ def extract_hard_patches_from_wis(selected_patch_dir,
                                   patch_dir,
                                   axis,
                                   image_input_channels,
-                                  brain_mask_channel,
-                                  classification_mask_channel,
                                   patch_selection,
                                   patch_size,
                                   patient,
@@ -639,16 +637,6 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   selected_selection_dir = join(selected_input_dir, 'Selection{}'.format(selection))
 
   # Actually get the wrongly classified patches
-  wrong_prediction = prediction != gold_standard
-
-  current_patches, current_labels = patient_patches(patient,
-                                                    pat_size_hashed_cache_path,
-                                                    image_input_channels,
-                                                    brain_mask_channel,
-                                                    classification_mask_channel,
-                                                    patch_size,
-                                                    axis)
-
   unique_labels, unique_labels_counts = np.unique(gold_standard, return_counts=True)
   min_label_occurrence = np.min(unique_labels_counts)
 
@@ -665,18 +653,30 @@ def extract_hard_patches_from_wis(selected_patch_dir,
     raise NotImplementedError()
   else:
     all_patches = images_to_patches_2d(image_filepaths, patch_size)
+    all_patches = all_patches.images.reshape((all_patches.images.shape[0] * all_patches.images.shape[1],
+                                              all_patches.images.shape[2],
+                                              all_patches.images.shape[3],
+                                              all_patches.images.shape[4]))
 
-  for label in range(1, len(unique_labels)):
+  new_patches = np.zeros((0, 0, 0))
+  new_labels = np.zeros((0, len(unique_labels)))
+
+  gold_standard_one_hot = np.eye(len(unique_labels))[gold_standard].astype(np.float_)
+
+  prediction = np.moveaxis(prediction, 0, -1)
+
+  for label in unique_labels:
     current_label_indices = gold_standard == label
-    wrong_label_pred = current_label_indices & wrong_prediction
-    wrong_pred_patches = all_patches.images[wrong_label_pred]
 
-    indices = np.full(wrong_pred_patches.shape[0], False, bool)
-    randices = np_random_choice(np.arange(indices.shape[0]),
-                                min(min_label_occurrence, wrong_pred_patches.shape[0]),
-                                replace=False)
-    indices[randices] = True
-    wrong_pred_patches = wrong_pred_patches[indices]
+    loss = np.absolute(np.subtract(prediction[current_label_indices, :],
+                                   gold_standard_one_hot[current_label_indices, :]))
+    loss = np.sum(loss, axis=len(loss.shape)-1)
+
+    loss_coords = loss.flatten().argsort()
+    loss_coords = loss_coords[0:min_label_occurrence]
+
+    wrong_pred_patches = all_patches[loss_coords]
+
     wrong_pred_patches = np.append(wrong_pred_patches,
                                    np.flip(wrong_pred_patches, 1),
                                    axis=0)
@@ -689,24 +689,27 @@ def extract_hard_patches_from_wis(selected_patch_dir,
                                                        wrong_pred_patches.shape[3]
                                                       ))
 
-    if wrong_pred_patches.shape[0] < min_label_occurrence:
-      current_label_patches = current_patches[np.argmax(current_labels, axis=1) == label]
-      indices = np.full(current_label_patches.shape[0], False, bool)
-      randices = np_random_choice(np.arange(indices.shape[0]),
-                                  min_label_occurrence - wrong_pred_patches.shape[0],
-                                  replace=False)
-      indices[randices] = True
-      current_label_patches = current_label_patches[indices]
+    wrong_pred_labels = np.full((wrong_pred_patches.shape[0]), label)
+    wrong_pred_labels = np.eye(len(unique_labels))[wrong_pred_labels]
 
-      wrong_pred_patches = np.append(wrong_pred_patches, current_label_patches, axis=0)
-
-    current_patches[np.argmax(current_labels, axis=1) == label] = wrong_pred_patches
+    if not new_patches.size:
+      new_patches = wrong_pred_patches
+      new_labels = wrong_pred_labels
+    else:
+      new_patches = np.append(new_patches, wrong_pred_patches, axis=0)
+      new_labels = np.append(new_labels, wrong_pred_labels, axis=0)
 
   pat_images_cache_path = join(pat_size_hashed_cache_path, '{}_images.npy'.format(patient))
+  pat_labels_cache_path = join(pat_size_hashed_cache_path, '{}_labels.npy'.format(patient))
 
-  np.save(pat_images_cache_path, current_patches)
+  np.save(pat_images_cache_path, new_patches)
+  np.save(pat_labels_cache_path, new_labels)
 
   selection_training_images_file = join(selected_selection_dir, 'Training_Images.npy')
+  selection_training_labels_file = join(selected_selection_dir, 'Training_Labels.npy')
 
   if isfile(selection_training_images_file):
     remove(selection_training_images_file)
+
+  if isfile(selection_training_labels_file):
+    remove(selection_training_labels_file)
