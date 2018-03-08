@@ -607,6 +607,7 @@ def extract_hard_patches_from_wis(selected_patch_dir,
 
   print("Generating hard patches for {}".format(patient))
 
+  # Make sure all the directories exist
   selection = str(patch_selection).zfill(3)
 
   selected_axis_dir = join(selected_patch_dir, axis)
@@ -637,7 +638,8 @@ def extract_hard_patches_from_wis(selected_patch_dir,
 
   selected_selection_dir = join(selected_input_dir, 'Selection{}'.format(selection))
 
-  wrong_prediction = prediction is not gold_standard
+  # Actually get the wrongly classified patches
+  wrong_prediction = prediction != gold_standard
 
   current_patches, current_labels = patient_patches(patient,
                                                     pat_size_hashed_cache_path,
