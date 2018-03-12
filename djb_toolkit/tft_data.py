@@ -375,15 +375,27 @@ def patient_patches_2d(image_input_channels,
     if not new_patches.size:
       new_patches = current_patches[indices]
       new_labels = current_labels[indices]
-
-      new_patches = np.append(new_patches, np.flip(current_patches[indices], 1), 0)
-      new_labels = np.append(new_labels, current_labels[indices], 0)
     else:
       new_patches = np.append(new_patches, current_patches[indices], 0)
       new_labels = np.append(new_labels, current_labels[indices], 0)
 
-      new_patches = np.append(new_patches, np.flip(current_patches[indices], 1), 0)
-      new_labels = np.append(new_labels, current_labels[indices], 0)
+    new_patches = np.append(new_patches, np.flip(current_patches[indices], 1), 0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 1, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 2, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 3, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
 
   print("2D Patches shape: {}".format(new_patches.shape))
   print("2D Labels shape: {}".format(new_labels.shape))
@@ -470,15 +482,27 @@ def patient_patches_3d(image_input_channels,
     if not new_patches.size:
       new_patches = current_patches
       new_labels = current_labels
-
-      new_patches = np.append(new_patches, np.flip(current_patches, 1), 0)
-      new_labels = np.append(new_labels, current_labels, 0)
     else:
       new_patches = np.append(new_patches, current_patches, 0)
       new_labels = np.append(new_labels, current_labels, 0)
 
-      new_patches = np.append(new_patches, np.flip(current_patches, 1), 0)
-      new_labels = np.append(new_labels, current_labels, 0)
+    new_patches = np.append(new_patches, np.flip(current_patches, 1), 0)
+    new_labels = np.append(new_labels, current_labels, 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 1, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 2, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
+
+    new_patches = np.append(new_patches,
+                            np.rot90(new_patches, 3, (2, 1)),
+                            axis=0)
+    new_labels = np.append(new_labels, current_labels[indices], 0)
 
   print("3D Patches shape: {}".format(new_patches.shape))
   print("3D Labels shape: {}".format(new_labels.shape))
