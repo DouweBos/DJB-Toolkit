@@ -9,6 +9,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 
 from djb_toolkit.data_wrapper import DataWrapper
+from djb_toolkit import tft_tools
 
 import numpy as np
 from numpy.random import choice as np_random_choice
@@ -171,12 +172,8 @@ def train_test_set_patches(selected_selection_dir,
       excluded_indices = np.isin(patient_nrs, excluded_patients)
       patient_nrs = np.delete(patient_nrs, excluded_indices.nonzero(), 0)
 
-    indices = np.full(patient_nrs.shape, False, bool)
-    randices = np_random_choice(np.arange(indices.shape[0]),
-                                int(patient_nrs.shape[0]/5.0),
-                                replace=False)
-
-    indices[randices] = True
+    indices = tft_tools.random_indices(patient_nrs.shape[0],
+                                       int(patient_nrs.shape[0]/5.0))
 
     train_patients = patient_nrs[~indices]
     test_patients = patient_nrs[indices]
@@ -374,9 +371,7 @@ def patient_patches_2d(image_input_channels,
     current_labels = np.zeros((current_patches.shape[0], unique_labels.size))
     current_labels[:, label] = 1
 
-    indices = np.full(current_patches.shape[0], False, bool)
-    randices = np_random_choice(np.arange(indices.shape[0]), min_label_occurrence, replace=False)
-    indices[randices] = True
+    indices = tft_tools.random_indices(current_patches.shape[0], min_label_occurrence)
 
     if not new_patches.size:
       new_patches = current_patches[indices]
@@ -449,10 +444,7 @@ def patient_patches_3d(image_input_channels,
     label_coordinates = np.transpose((label_mask).nonzero())
     del label_mask
 
-    indices = np.full(label_coordinates.shape[0], False, bool)
-    randices = np_random_choice(np.arange(indices.shape[0]), min_label_occurrence, replace=False)
-    indices[randices] = True
-    del randices
+    indices = tft_tools.random_indices(label_coordinates.shape[0], min_label_occurrence)
 
     label_coordinates = label_coordinates[indices]
     del indices
