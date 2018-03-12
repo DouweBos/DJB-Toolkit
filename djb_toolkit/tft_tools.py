@@ -11,6 +11,7 @@ from itertools import product
 import requests
 
 import numpy as np
+from numpy.random import choice as np_random_choice
 import openpyxl
 
 import djb_toolkit
@@ -183,3 +184,11 @@ def axis_str_to_int(axis):
     return axis
   else:
     return -1
+
+def random_indices(size, max_count):
+  indices = np.full(size, False, bool)
+  randices = np_random_choice(np.arange(indices.shape[0]), max_count, replace=False)
+  indices[randices] = True
+  del randices
+
+  return indices
