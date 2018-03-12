@@ -7,6 +7,7 @@ import json
 import hashlib
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
+import math
 
 from djb_toolkit.data_wrapper import DataWrapper
 from djb_toolkit import tft_tools
@@ -683,36 +684,78 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   for label in unique_labels:
     current_label_indices = gold_standard == label
 
-    loss = np.absolute(np.subtract(prediction[current_label_indices, :],
-                                   gold_standard_one_hot[current_label_indices, :]))
+    loss = np.absolute(np.subtract(gold_standard_one_hot[current_label_indices, :],
+                                   prediction[current_label_indices, :]))
     loss = np.sum(loss, axis=len(loss.shape)-1)
 
     loss_coords = loss.flatten().argsort()
-    loss_coords = loss_coords[0:min_label_occurrence]
 
-    wrong_pred_patches = all_patches[loss_coords]
+    bias_patch_selection_size = math.floor(min_label_occurrence/4)
 
+    wrong_pred_patches_coords = loss_coords[0:bias_patch_selection_size]
+    wrong_pred_patches = all_patches[wrong_pred_patches_coords]
     wrong_pred_patches = np.append(wrong_pred_patches,
                                    np.flip(wrong_pred_patches, 1),
                                    axis=0)
 
+    correct_pred_patches_coords = loss_coords[-bias_patch_selection_size::]
+    correct_pred_patches = all_patches[correct_pred_patches_coords]
+    correct_pred_patches = np.append(correct_pred_patches,
+                                     np.flip(correct_pred_patches, 1),
+                                     axis=0)
+
+    random_patches_remaining = min_label_occurrence - (bias_patch_selection_size * 2)
+
+    indices = tft_tools.random_indices(loss_coords.shape[0] - (bias_patch_selection_size * 2),
+                                       random_patches_remaining)
+
+    random_patches_coords = loss_coords[bias_patch_selection_size:-bias_patch_selection_size][indices]
+    random_patches = all_patches[random_patches_coords]
+    random_patches = np.append(random_patches,
+                               np.flip(random_patches, 1),
+                               axis=0)
+
+    all_patches = np.concatenate((wrong_pred_patches, correct_pred_patches, random_patches),
+                                 axis=0)
+
+    all_patches = np.append(all_patches,
+                            np.rot90(all_patches, 1, (1, 0)),
+                            axis=0)
+
+    all_patches = np.append(all_patches,
+                            np.rot90(all_patches, 2, (1, 0)),
+                            axis=0)
+
+    all_patches = np.append(all_patches,
+                            np.rot90(all_patches, 3, (1, 0)),
+                            axis=0)
+
+    del wrong_pred_patches
+    del wrong_pred_patches_coords
+
+    del correct_pred_patches
+    del correct_pred_patches_coords
+
+    del random_patches
+    del random_patches_coords
+
     if axis == '3d':
       raise NotImplementedError(0)
     else:
-      wrong_pred_patches = wrong_pred_patches.reshape((wrong_pred_patches.shape[0],
-                                                       wrong_pred_patches.shape[1] * wrong_pred_patches.shape[2],
-                                                       wrong_pred_patches.shape[3]
-                                                      ))
+      all_patches = all_patches.reshape((all_patches.shape[0],
+                                         all_patches.shape[1] * all_patches.shape[2],
+                                         all_patches.shape[3]
+                                        ))
 
-    wrong_pred_labels = np.full((wrong_pred_patches.shape[0]), label)
-    wrong_pred_labels = np.eye(len(unique_labels))[wrong_pred_labels]
+    all_labels = np.full((all_patches.shape[0]), label)
+    all_labels = np.eye(len(unique_labels))[all_labels]
 
     if not new_patches.size:
-      new_patches = wrong_pred_patches
-      new_labels = wrong_pred_labels
+      new_patches = all_patches
+      new_labels = all_labels
     else:
-      new_patches = np.append(new_patches, wrong_pred_patches, axis=0)
-      new_labels = np.append(new_labels, wrong_pred_labels, axis=0)
+      new_patches = np.append(new_patches, all_patches, axis=0)
+      new_labels = np.append(new_labels, all_labels, axis=0)
 
   pat_images_cache_path = join(pat_size_hashed_cache_path, '{}_images.npy'.format(patient))
   pat_labels_cache_path = join(pat_size_hashed_cache_path, '{}_labels.npy'.format(patient))
