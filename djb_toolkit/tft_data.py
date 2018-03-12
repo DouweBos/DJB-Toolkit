@@ -12,7 +12,6 @@ from djb_toolkit.data_wrapper import DataWrapper
 from djb_toolkit import tft_tools
 
 import numpy as np
-from numpy.random import choice as np_random_choice
 from numpy.random import shuffle as np_random_shuffle
 import SimpleITK as sitk
 from sklearn.feature_extraction import image
