@@ -34,21 +34,22 @@ def conv2d(input_values=None,
 ## Pooling
 
 # Max Pooling
-def max_pool_2x2_s2(input_values=None):
-  """max_pool_2x2_s2 downsamples a feature map by 2X."""
-  return tf.nn.max_pool(input_values,
-                        ksize=[1, 2, 2, 1],
-                        strides=[1, 2, 2, 1],
-                        padding='SAME')
 
-def max_pool_3x3_s1(input_values, name=None):
-  """max_pool_3x3_s1 downsamples a feature map by 3X."""
+def max_pool(input_values, k_size, stride, padding='SAME', name=None):
+  """max_pool downsamples a feature map."""
   return tf.nn.max_pool(input_values,
-                        ksize=[1, 3, 3, 1],
-                        strides=[1, 1, 1, 1],
-                        padding='SAME',
+                        ksize=[1, k_size, k_size, 1],
+                        strides=[1, stride, stride, 1],
+                        padding=padding,
                         name=name)
 
+def avg_pool(input_values, k_size, stride, padding='SAME', name=None):
+  """max_pool_3x3_s1 downsamples a feature map by 3X."""
+  return tf.nn.avg_pool(input_values,
+                        ksize=[1, k_size, k_size, 1],
+                        strides=[1, stride, stride, 1],
+                        padding=padding,
+                        name=name)
 
 ## Weight Bias
 
@@ -119,8 +120,11 @@ def inception_module(input_values=None,
 
     #follows max pooling
     with tf.name_scope('{}_max_pool'.format(name)):
-      maxpool = max_pool_3x3_s1(input_values, '{}_max_pool_3x3'.format(name))
-      conv_1x1_4 = conv2d(input_values=maxpool,
+      m_pool = max_pool(input_values=input_values,
+                          k_size=3,
+                          stride=1,
+                          name='{}_max_pool_3x3'.format(name))
+      conv_1x1_4 = conv2d(input_values=m_pool,
                           input_features=input_features,
                           output_features=output_features,
                           kernel=1,
