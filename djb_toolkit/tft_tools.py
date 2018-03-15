@@ -22,7 +22,7 @@ def get_settings():
   """Get settings defined in settings.json file
 
     Run djb_toolkit.setup with a settings file path first.
-    
+
     Otherwise this function will return `None`"""
 
   if not djb_toolkit.SETTINGS_FILE:
@@ -166,26 +166,31 @@ def axis_str_to_int(axis):
     Returns -1 if axis is not found and given argument is not representable as an Integer
   """
 
+  axis_int = -1
+
   if axis.lower() == 'axiaal':
-    return 0
+    axis_int = 0
   elif axis.lower() == 'coronaal':
-    return 1
+    axis_int = 1
   elif axis.lower() == 'sagittaal':
-    return 2
+    axis_int = 2
   elif axis.lower() == 'a':
-    return 0
+    axis_int = 0
   elif axis.lower() == 'c':
-    return 1
+    axis_int = 1
   elif axis.lower() == 'sr':
-    return 2
+    axis_int = 2
   elif axis.lower() == 'sl':
-    return 3
+    axis_int = 3
   elif represents_int(axis):
-    return axis
-  else:
-    return -1
+    axis_int = axis
+
+  return axis_int
 
 def random_indices(size, max_count):
+  """Get max max_count random indices for an array with given size
+
+  Returns an numpy array of boolean indices"""
   indices = np.full(size, False, bool)
   randices = np_random_choice(np.arange(indices.shape[0]), max_count, replace=False)
   indices[randices] = True
