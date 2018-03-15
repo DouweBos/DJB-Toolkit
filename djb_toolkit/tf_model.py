@@ -12,7 +12,7 @@ from time import time
 
 import tensorflow as tf
 from numpy import ones, array, average, amax, zeros, mean, unique, transpose
-from numpy import concatenate, argmax, full
+from numpy import concatenate, argmax, full, append
 from numpy import int16, float64
 import names
 import SimpleITK as sitk
@@ -25,6 +25,7 @@ from djb_toolkit import DataWrapper
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-arguments
+# pylint: disable=C0301
 
 class TFModel(object):
   """Superclass with default functions for new model creations."""
@@ -176,7 +177,7 @@ class TFModel(object):
       x: an input tensor with the dimensions (N_examples, image_height * image_width, image_channels).
 
     Returns:
-      A tuple (y, y_sm, keep_prob). 
+      A tuple (y, y_sm, keep_prob).
       y is a tensor of shape (N_examples, classifications), with values
       equal to the logits of classifying the patch into one of classifications.
       y_sm is a tensor of shape (N_examples, classifications), with values
@@ -353,45 +354,47 @@ class TFModel(object):
     if not self.skip_whole_image_segmentation:
       print('Whole Image Segmentation')
       if self.axis != '3d':
-        dice_avg = self.__whole_image_segmentation_2d(self.image_input_channels,
-                                                      self.class_mask_channel,
-                                                      tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
-                                                      self.axis,
-                                                      checkpoint_dir=checkpoint_dir,
-                                                      sess=sess,
-                                                      prediction=prediction,
-                                                      y_convsm=y_convsm,
-                                                      x=x,
-                                                      y_=y_,
-                                                      keep_prob=keep_prob,
-                                                      class_th=class_th,
-                                                      patch_size=self.image_size,
-                                                      batch_size=self.batch_size,
-                                                      classifying_threshold=self.classifying_threshold,
-                                                      segment_training_patients=True)
+        testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_2d(self.image_input_channels,
+                                                                                 self.class_mask_channel,
+                                                                                 tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
+                                                                                 self.axis,
+                                                                                 checkpoint_dir=checkpoint_dir,
+                                                                                 sess=sess,
+                                                                                 prediction=prediction,
+                                                                                 y_convsm=y_convsm,
+                                                                                 x=x,
+                                                                                 y_=y_,
+                                                                                 keep_prob=keep_prob,
+                                                                                 class_th=class_th,
+                                                                                 patch_size=self.image_size,
+                                                                                 batch_size=self.batch_size,
+                                                                                 classifying_threshold=self.classifying_threshold,
+                                                                                 segment_training_patients=True)
       else:
-        dice_avg = self.__whole_image_segmentation_3d(self.image_input_channels,
-                                                      self.class_mask_channel,
-                                                      tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
-                                                      checkpoint_dir=checkpoint_dir,
-                                                      sess=sess,
-                                                      prediction=prediction,
-                                                      x=x,
-                                                      y_=y_,
-                                                      keep_prob=keep_prob,
-                                                      class_th=class_th,
-                                                      patch_size=self.image_size,
-                                                      batch_size=self.batch_size,
-                                                      classifying_threshold=self.classifying_threshold,
-                                                      segment_training_patients=False)
+        testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_3d(self.image_input_channels,
+                                                                                 self.class_mask_channel,
+                                                                                 tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
+                                                                                 checkpoint_dir=checkpoint_dir,
+                                                                                 sess=sess,
+                                                                                 prediction=prediction,
+                                                                                 x=x,
+                                                                                 y_=y_,
+                                                                                 keep_prob=keep_prob,
+                                                                                 class_th=class_th,
+                                                                                 patch_size=self.image_size,
+                                                                                 batch_size=self.batch_size,
+                                                                                 classifying_threshold=self.classifying_threshold,
+                                                                                 segment_training_patients=False)
 
-    print('DICE coefficient %g' % dice_avg)
+    print('Testing DICE coefficient %g' % testing_dice_avg)
+    print('Training DICE coefficient %g' % training_dice_avg)
 
     # Post 'finished whole image segmentation' to my personal slack
     tft_tools.post_to_slack((self.graph_name
                              + ' finished whole image segmentation.\n'
                              + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
-                             + 'Average DICE coefficient: ' + str(dice_avg)))
+                             + 'Average Testing DICE coefficient: ' + str(testing_dice_avg) + '\n'
+                             + 'Average Training DICE coefficient: ' + str(training_dice_avg)))
 
     end = datetime.now()
 
@@ -404,7 +407,7 @@ class TFModel(object):
                                start_date=start.isoformat(),
                                end_date=end.isoformat(),
                                test_accuracy=test_accuracy_avg,
-                               dice_score=dice_avg,
+                               dice_score=testing_dice_avg,
                                alpha=self.alpha,
                                training_dropout=self.training_keep_prob,
                                epochs=self.epochs,
@@ -427,7 +430,7 @@ class TFModel(object):
     train_writer.close()
     test_writer.close()
 
-    return save_path, test_accuracy_avg, dice_avg 
+    return save_path, test_accuracy_avg, dice_avg
 
   # pylint: disable=C0103
   def __train_graph(self,
@@ -571,7 +574,8 @@ class TFModel(object):
     roi_channel_image = sitk.GetArrayFromImage(roi_channel_image)
     roi_channel_image = amax(roi_channel_image, axis=axis)
 
-    sum_dice = []
+    testing_sum_dice = []
+    training_sum_dice = []
 
     for patient in patients:
       print('WIS {}'.format(patient))
@@ -596,42 +600,36 @@ class TFModel(object):
       image_patches = DataWrapper(image_patches,
                                   zeros((image_patches.shape[0], self.classifications)))
 
-      pred_labels = []
-      prob_labels = []
+      pred_labels = array([])
+      prob_labels = array([])
       patches_left = image_patches.num_examples
 
       for i in range(0, math.ceil(patches_left/batch_size)):
         current_pos = i*batch_size
 
         batch = image_patches.images[current_pos: current_pos + min(batch_size, patches_left)]
-        max_batch = amax(batch)
 
-        if max_batch == 0.0:
-          pred_labels.extend(zeros((len(batch))))
-          prob_labels.extend(full((len(batch)), 0.0))
+        pred, prob = sess.run([prediction, y_convsm],
+                              feed_dict={
+                                  x: batch,                                         # pylint: disable=C0330
+                                  y_: ones((batch.shape[0],                         # pylint: disable=C0330
+                                            len(classifying_threshold))),           # pylint: disable=C0330
+                                  keep_prob: 1.0,                                   # pylint: disable=C0330
+                                  class_th: classifying_threshold
+                              })
+        center_pixel_index = int(((patch_size * patch_size) - 1) / 2)
+        bool_patches = mean((batch == 0.0)[:, center_pixel_index], axis=1) > 0
+        pred[bool_patches] = 0
+        prob[bool_patches] = 0.0
 
-          patches_left -= batch_size
+        if not pred_labels.size:
+          pred_labels = pred
+          prob_labels = prob
         else:
-          pred, prob = sess.run([prediction, y_convsm],
-                          feed_dict={
-                              x: batch,                                         # pylint: disable=C0330
-                              y_: ones((batch.shape[0],                         # pylint: disable=C0330
-                                        len(classifying_threshold))),           # pylint: disable=C0330
-                              keep_prob: 1.0,                                   # pylint: disable=C0330
-                              class_th: classifying_threshold
-                          })
-          center_pixel_index = int(((patch_size * patch_size) - 1) / 2)
-          bool_patches = mean((batch == 0.0)[:, center_pixel_index], axis=1) > 0
-          pred[bool_patches] = 0
-          prob[bool_patches] = 0.0
+          pred_labels = append(pred_labels, pred, axis=0)
+          prob_labels = append(prob_labels, prob, axis=0)
 
-          pred_labels.extend(pred)
-          prob_labels.extend(prob)
-
-          patches_left -= batch_size
-
-      pred_labels = array(pred_labels)
-      prob_labels = array(prob_labels)
+        patches_left -= batch_size
 
       output_pred = zeros((0, 0))
       output_prob = full((len(classifying_threshold), 0, 0), 0.0)
@@ -694,7 +692,11 @@ class TFModel(object):
       counts = dict(zip(unique_predictions, prediction_counts))
 
       output_pred_dice = tft_tools.dice(gold_standard_image, output_pred)
-      sum_dice.append(output_pred_dice)
+
+      if patient in testing_patients:
+        testing_sum_dice.append(output_pred_dice)
+      else:
+        training_sum_dice.append(output_pred_dice)
 
       thrombus_pixel_count = 0
 
@@ -737,7 +739,7 @@ class TFModel(object):
                                                output_prob,
                                                gold_standard_image)
 
-    return average(array(sum_dice))
+    return average(array(testing_sum_dice)), average(array(training_sum_dice))
 
     # pylint: disable=invalid-name
   # pylint: disable=R0914
@@ -777,7 +779,8 @@ class TFModel(object):
     roi_channel_coord_s = roi_channel_coord[:, [0, 1]]
     del roi_channel_coord
 
-    sum_dice = []
+    testing_sum_dice = []
+    training_sum_dice = []
 
     for i in range(0, min(4, len(patients))):
       patient = patients[i]
@@ -881,7 +884,11 @@ class TFModel(object):
       counts = dict(zip(unique_predictions, prediction_counts))
 
       output_pred_dice = tft_tools.dice(gold_standard_image, output_pred)
-      sum_dice.append(output_pred_dice)
+
+      if patient in testing_patients:
+        testing_sum_dice.append(output_pred_dice)
+      else:
+        training_sum_dice.append(output_pred_dice)
 
       thrombus_pixel_count = 0
 
@@ -906,4 +913,4 @@ class TFModel(object):
 
       print('')
 
-    return average(array(sum_dice))
+    return average(array(testing_sum_dice)), average(array(training_sum_dice))
