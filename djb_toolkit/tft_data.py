@@ -423,7 +423,6 @@ def patient_patches_3d(image_input_channels,
       0: images_to_patches_3d(image_filepaths, patch_size, 0),
       1: images_to_patches_3d(image_filepaths, patch_size, 1),
       2: images_to_patches_3d(image_filepaths, patch_size, 2),
-      3: images_to_patches_3d(image_filepaths, patch_size, 3)
   }
 
   # Classification mask
@@ -468,16 +467,14 @@ def patient_patches_3d(image_input_channels,
 
     patches_a = axis_mips[0].images[label_coordinates_a[:, 0], label_coordinates_a[:, 1]]
     patches_c = axis_mips[1].images[label_coordinates_c[:, 0], label_coordinates_c[:, 1]]
-    patches_sr = axis_mips[2].images[label_coordinates_s[:, 0], label_coordinates_s[:, 1]]
-    patches_sl = axis_mips[3].images[label_coordinates_s[:, 0], label_coordinates_s[:, 1]]
+    patches_s = axis_mips[2].images[label_coordinates_s[:, 0], label_coordinates_s[:, 1]]
 
     current_labels = np.zeros((patches_a.shape[0], unique_labels.size))
     current_labels[:, label] = 1
 
     current_patches = np.concatenate((patches_a,
                                       patches_c,
-                                      patches_sr,
-                                      patches_sl),
+                                      patches_s),
                                      axis=3)
 
     if not new_patches.size:
