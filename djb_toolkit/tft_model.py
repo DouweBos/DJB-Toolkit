@@ -27,7 +27,6 @@ def conv2d(input_values=None,
   grid = tf.transpose(put_kernels_on_grid(weights))
   tf.summary.image('kernel_{}'.format(name), grid, max_outputs=1, collections=None, family=None)
 
-
   return tf.nn.relu(conv + biases) if relu else (conv + biases)
 
 
@@ -121,9 +120,9 @@ def inception_module(input_values=None,
     #follows max pooling
     with tf.name_scope('{}_max_pool'.format(name)):
       m_pool = max_pool(input_values=input_values,
-                          k_size=3,
-                          stride=1,
-                          name='{}_max_pool_3x3'.format(name))
+                        k_size=3,
+                        stride=1,
+                        name='{}_max_pool_3x3'.format(name))
       conv_1x1_4 = conv2d(input_values=m_pool,
                           input_features=input_features,
                           output_features=output_features,
