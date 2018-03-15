@@ -717,17 +717,19 @@ def extract_hard_patches_from_wis(selected_patch_dir,
 
     all_patches = np.concatenate((wrong_pred_patches, correct_pred_patches, random_patches),
                                  axis=0)
-
+    print(all_patches.shape)
+    a = np.rot90(all_patches, 1, (2, 1))
+    print(a.shape)
     all_patches = np.append(all_patches,
-                            np.rot90(all_patches, 1, (1, 0)),
+                            np.rot90(all_patches, 1, (2, 1)),
                             axis=0)
 
     all_patches = np.append(all_patches,
-                            np.rot90(all_patches, 2, (1, 0)),
+                            np.rot90(all_patches, 2, (2, 1)),
                             axis=0)
 
     all_patches = np.append(all_patches,
-                            np.rot90(all_patches, 3, (1, 0)),
+                            np.rot90(all_patches, 3, (2, 1)),
                             axis=0)
 
     del wrong_pred_patches
