@@ -16,7 +16,7 @@ This installs `DJB-Toolkit` through pip into site-packages but keeps it up to da
 Before doing anything with the toolkit run the `setup` method first with a direct path to your implementation of the settings file.
 
 ```python
-djb_toolkit.setup(settings_file='R:\\Douwe\\DJB-BMEP\\Tensorflow\\djb_toolkit_settings.json')
+djb_toolkit.setup(settings_file='S:\\DJB-BMEP\\Tensorflow\\djb_toolkit_settings.json')
 ```
   #### TODO
 
