@@ -84,6 +84,7 @@ def write_tf_results(graph=None,
                      image_width=None,
                      image_height=None,
                      image_channels=None,
+                     axis=None,
                      classifying_threshold=None,
                      post_proc_min_count=None,
                      post_proc_patch_size=None,
@@ -111,11 +112,12 @@ def write_tf_results(graph=None,
   worksheet['K1'] = 'Image Width'
   worksheet['L1'] = 'Image Height'
   worksheet['M1'] = 'Image Channels'
-  worksheet['N1'] = 'Classifications'
-  worksheet['O1'] = 'Post Proc Size'
-  worksheet['P1'] = 'Post Proc Min Count'
-  worksheet['Q1'] = 'Retore Checkpoint'
-  worksheet['R1'] = 'Custom Settings'
+  worksheet['N1'] = 'Axis'
+  worksheet['O1'] = 'Classifications'
+  worksheet['P1'] = 'Post Proc Size'
+  worksheet['Q1'] = 'Post Proc Min Count'
+  worksheet['R1'] = 'Retore Checkpoint'
+  worksheet['S1'] = 'Custom Settings'
 
   worksheet.append([graph,
                     start_date,
@@ -130,6 +132,7 @@ def write_tf_results(graph=None,
                     image_width,
                     image_height,
                     image_channels,
+                    axis,
                     classifying_threshold,
                     post_proc_patch_size,
                     post_proc_min_count,
