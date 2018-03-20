@@ -168,7 +168,9 @@ def axis_str_to_int(axis):
 
   axis_int = -1
 
-  if axis.lower() == 'axiaal':
+  if represents_int(axis):
+    axis_int = axis
+  elif axis.lower() == 'axiaal':
     axis_int = 0
   elif axis.lower() == 'coronaal':
     axis_int = 1
@@ -182,8 +184,6 @@ def axis_str_to_int(axis):
     axis_int = 2
   elif axis.lower() == 'sl':
     axis_int = 3
-  elif represents_int(axis):
-    axis_int = axis
 
   return axis_int
 
