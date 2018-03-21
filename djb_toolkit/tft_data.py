@@ -34,7 +34,7 @@ def get_patch_selection(selected_patch_dir,
   selected_axis_dir = join(selected_patch_dir, axis)
   patches_axis_dir = join(patch_dir, axis)
 
-  if not isdir(selected_axis_dir):
+  if not isdir(selected_axis_dir):l
     mkdir(selected_axis_dir)
 
   if not isdir(patches_axis_dir):
@@ -309,7 +309,8 @@ def patient_patches(patient_nr,
                                     brain_mask_channel,
                                     classification_mask,
                                     patient_nr,
-                                    patch_size)
+                                    patch_size,
+                                    axis)
 
     print("Saving {} to {}".format(patient_nr,
                                    pat_images_cache_path))
@@ -322,7 +323,8 @@ def patient_patches_2d(image_input_channels,
                        brain_mask_channel,
                        classification_mask,
                        pat_id,
-                       patch_size):
+                       patch_size,
+                       axis):
   """Get all scans for a patient"""
 
   print("2D Patches for patient {}".format(pat_id))
@@ -340,9 +342,10 @@ def patient_patches_2d(image_input_channels,
 
   brain_mask_image = sitk.ReadImage(brain_mask_path)
   brain_mask_image = sitk.GetArrayFromImage(brain_mask_image)
+  brain_mask_image = tft_tools.reshape_2d_scan_for_axis(brain_mask_image, axis)
   brain_mask_image = brain_mask_image.nonzero()
 
-  pat_patches = images_to_patches_2d(image_filepaths, patch_size)
+  pat_patches = images_to_patches_2d(image_filepaths, patch_size, axis)
   pat_patches = pat_patches.images[brain_mask_image]
 
   classification_mask_path = join(classification_mask['path'],
@@ -351,6 +354,7 @@ def patient_patches_2d(image_input_channels,
 
   class_mask_image = sitk.ReadImage(classification_mask_path)
   class_mask_image = sitk.GetArrayFromImage(class_mask_image)
+  class_mask_image = tft_tools.reshape_2d_scan_for_axis(class_mask_image, axis)
   class_mask_image = class_mask_image[brain_mask_image]
 
   new_patches = np.array([])
@@ -484,31 +488,31 @@ def patient_patches_3d(image_input_channels,
       new_patches = np.append(new_patches, current_patches, 0)
       new_labels = np.append(new_labels, current_labels, 0)
 
-    new_patches = np.append(new_patches, np.flip(current_patches, 1), 0)
-    new_labels = np.append(new_labels, current_labels, 0)
+    # new_patches = np.append(new_patches, np.flip(current_patches, 1), 0)
+    # new_labels = np.append(new_labels, current_labels, 0)
 
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 1, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
+    # new_patches = np.append(new_patches,
+    #                         np.rot90(new_patches, 1, (2, 1)),
+    #                         axis=0)
+    # new_labels = np.append(new_labels, np.copy(new_labels), 0)
 
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 2, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
+    # new_patches = np.append(new_patches,
+    #                         np.rot90(new_patches, 2, (2, 1)),
+    #                         axis=0)
+    # new_labels = np.append(new_labels, np.copy(new_labels), 0)
 
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 3, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
+    # new_patches = np.append(new_patches,
+    #                         np.rot90(new_patches, 3, (2, 1)),
+    #                         axis=0)
+    # new_labels = np.append(new_labels, np.copy(new_labels), 0)
 
   print("3D Patches shape: {}".format(new_patches.shape))
   print("3D Labels shape: {}".format(new_labels.shape))
 
   return DataWrapper(new_patches, new_labels, reshape=True)
 
-def images_to_patches_2d(image_filepaths, patch_size):
-  """Get patches of given size (`patch_width` * `patch_height`) from the given image filepath"""
+def images_to_patches_2d(image_filepaths, patch_size, axis):
+  """Get patches of given size (`patch_size` * `patch_size`) from the given image filepath"""
 
   assert patch_size % 2 == 1
 
@@ -518,9 +522,9 @@ def images_to_patches_2d(image_filepaths, patch_size):
 
   for image_filepath in image_filepaths:
     # Reads the image using SimpleITK
-    itkimage = sitk.ReadImage(image_filepath)
-
-    ct_scan = sitk.GetArrayFromImage(itkimage)
+    ct_scan = sitk.ReadImage(image_filepath)
+    ct_scan = sitk.GetArrayFromImage(ct_scan)
+    ct_scan = tft_tools.reshape_2d_scan_for_axis(ct_scan, axis)
 
     og_shape = ct_scan.shape
 
@@ -570,9 +574,6 @@ def images_to_patches_3d(image_filepaths, patch_size, axis):
 
     if axis == 2:
       ct_scan = ct_scan[:, :, 0:int(ct_scan.shape[2]/2)]
-    elif axis == 3:
-      ct_scan = ct_scan[:, :, int(ct_scan.shape[2]/2):ct_scan.shape[2]]
-      axis = 2
 
     ct_scan = np.amax(ct_scan, axis=axis)
     og_shape = ct_scan.shape
@@ -665,7 +666,7 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   if axis == '3d':
     raise NotImplementedError()
   else:
-    all_patches = images_to_patches_2d(image_filepaths, patch_size)
+    all_patches = images_to_patches_2d(image_filepaths, patch_size, axis)
     all_patches = all_patches.images.reshape((all_patches.images.shape[0] * all_patches.images.shape[1],
                                               all_patches.images.shape[2],
                                               all_patches.images.shape[3],

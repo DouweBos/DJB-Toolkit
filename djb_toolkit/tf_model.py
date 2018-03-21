@@ -56,7 +56,8 @@ class TFModel(object):
                num_fc=1024,
                post_proc_patch_size=5,
                post_proc_min_count=10,
-               store_hard_patches=True
+               store_hard_patches=False,
+               k_fold_cross_validation=4,
               ):
     """Init TF Model super class object. Should only be implemented, never used directly.
     """
@@ -410,12 +411,13 @@ class TFModel(object):
                                dice_score=testing_dice_avg,
                                alpha=self.alpha,
                                training_dropout=self.training_keep_prob,
-                               epochs=self.epochs,
+                               epochs=self.epochs * ~self.skip_training,
                                batch_size=self.batch_size,
                                num_fc=self.num_fc,
                                image_width=self.image_size,
                                image_height=self.image_size,
                                image_channels=self.input_channel_config,
+                               axis=self.axis,
                                classifying_threshold=classifying_threshold_str,
                                post_proc_min_count=self.post_proc_min_count,
                                post_proc_patch_size=self.post_proc_patch_size,
@@ -593,9 +595,10 @@ class TFModel(object):
 
       gold_standard_image = sitk.ReadImage(gold_standard_path)
       gold_standard_image = sitk.GetArrayFromImage(gold_standard_image)
+      gold_standard_image = tft_tools.reshape_2d_scan_for_axis(gold_standard_image, axis)
       gold_standard_image[gold_standard_image == -1024] = 0
 
-      image_patches = tft_data.images_to_patches_2d(image_filepaths, patch_size)
+      image_patches = tft_data.images_to_patches_2d(image_filepaths, patch_size, axis)
       image_patches = image_patches.images[roi_channel_image.nonzero()]
       image_patches = DataWrapper(image_patches,
                                   zeros((image_patches.shape[0], self.classifications)))
@@ -709,6 +712,9 @@ class TFModel(object):
 
       if not os.path.exists(new_dir):
         os.mkdir(new_dir)
+
+      output_pred = tft_tools.reshape_2d_to_3d_scan_for_axis(output_pred, axis)
+      output_prob = tft_tools.reshape_2d_to_3d_scan_for_axis(output_prob, axis)
 
       sitk.WriteImage(sitk.GetImageFromArray(output_pred),
                       join(new_dir, (patient + '_segmentation_'
@@ -832,8 +838,6 @@ class TFModel(object):
                                      patches(1).images[roi_channel_coord_c[floor:ceil, 0],
                                                        roi_channel_coord_c[floor:ceil, 1]],
                                      patches(2).images[roi_channel_coord_s[floor:ceil, 0],
-                                                       roi_channel_coord_s[floor:ceil, 1]],
-                                     patches(3).images[roi_channel_coord_s[floor:ceil, 0],
                                                        roi_channel_coord_s[floor:ceil, 1]]
                                     ),
                                     axis=3)

@@ -206,6 +206,25 @@ def reshape_2d_scan_for_axis(scan, axis):
 
   return scan
 
+
+def reshape_2d_to_3d_scan_for_axis(scan, axis):
+  """Reshape 2d scan for given axis into an actual 2d object.
+  This reshapes images with shape `(398, 430)` into shape `(398, 1, 430)` etc."""
+
+  axis = axis_str_to_int(axis)
+  scan = np.copy(scan)
+
+  if axis == 1:
+    scan = scan.reshape((scan.shape[0],
+                         1,
+                         scan.shape[1]))
+  elif axis == 2:
+    scan = scan.reshape((scan.shape[0],
+                         scan.shape[1],
+                         1))
+
+  return scan
+
 def random_indices(size, max_count):
   """Get max max_count random indices for an array with given size
 
