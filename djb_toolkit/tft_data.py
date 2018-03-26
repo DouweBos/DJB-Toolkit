@@ -1,6 +1,6 @@
 """Collection of reusable data helper functions."""
 
-from os import mkdir, remove
+from os import mkdirs, remove
 from os.path import isdir, isfile, join, basename, normpath
 from pathlib import Path
 import json
@@ -25,82 +25,100 @@ def get_patch_selection(selected_patch_dir,
                         classification_mask,
                         patch_size,
                         patch_selection,
+                        k_fold_selection,
+                        k_fold_count,
                         excluded_patients=None):
   """Check if patches of the given size are generated and selected.
   If not: JUST DO IT. Returns train and test set paths"""
 
   selection = str(patch_selection).zfill(3)
+  k_fold_selection = str(k_fold_selection).zfill(2)
 
-  selected_axis_dir = join(selected_patch_dir, axis)
-  patches_axis_dir = join(patch_dir, axis)
-
-  if not isdir(selected_axis_dir):l
-    mkdir(selected_axis_dir)
-
-  if not isdir(patches_axis_dir):
-    mkdir(patches_axis_dir)
-
-  selected_axis_size_dir = join(selected_axis_dir, str(patch_size))
-  patches_axis_size_dir = join(patches_axis_dir, str(patch_size))
-
-  if not isdir(selected_axis_size_dir):
-    mkdir(selected_axis_size_dir)
-
-  if not isdir(patches_axis_size_dir):
-    mkdir(patches_axis_size_dir)
+  selected_dir = join(selected_patch_dir, axis, str(patch_size))
+  patches_dir = join(patch_dir, axis, str(patch_size))
 
   json_image_channels = json.dumps(image_input_channels, sort_keys=True).encode('utf-8')
   input_channel_hash = str(hashlib.md5(json_image_channels).hexdigest())
-  selected_input_dir = join(selected_axis_size_dir, input_channel_hash)
+  selected_dir = join(selected_dir, input_channel_hash)
+  selected_dir = join(selected_dir, 'Fold_Selection_{}'.format(selection))
 
-  if not isdir(selected_input_dir):
-    mkdir(selected_input_dir)
+  if not isdir(selected_dir):
+    mkdirs(selected_dir)
 
-  selected_selection_dir = join(selected_input_dir, 'Selection{}'.format(selection))
+  if not isdir(patches_dir):
+    mkdirs(patches_dir)
 
-  if not isdir(selected_selection_dir):
-    mkdir(selected_selection_dir)
+  missing_files = False
 
-  training_images_path = join(selected_selection_dir, 'Training_Images.npy')
-  training_labels_path = join(selected_selection_dir, 'Training_Labels.npy')
-  training_patients_path = join(selected_selection_dir, 'Training_Patients.npy')
+  for i in range(k_fold_count):
+    fold_leftpadded = str(i).zfill(2)
+    if missing_files:
+      break
 
-  testing_images_path = join(selected_selection_dir, 'Testing_Images.npy')
-  testing_labels_path = join(selected_selection_dir, 'Testing_Labels.npy')
-  testing_patients_path = join(selected_selection_dir, 'Testing_Patients.npy')
+    testing_images_path = join(selected_dir, 'Fold_{}_Images.npy'.format(fold_leftpadded))
+    testing_labels_path = join(selected_dir, 'Fold_{}_Labels.npy'.format(fold_leftpadded))
+    testing_patients_path = join(selected_dir, 'Fold_{}_Patients.npy'.format(fold_leftpadded))
 
-  files = [training_images_path, training_labels_path, training_patients_path,
-           testing_images_path, testing_labels_path, testing_patients_path]
-  existing_files = [f for f in files if isfile(f)]
-  missing_files = list(set(existing_files) ^set(files))
+    files = [testing_images_path, testing_labels_path, testing_patients_path]
+    existing_files = [f for f in files if isfile(f)]
+
+    if not missing_files:
+      missing_files = list(set(existing_files) ^set(files))
 
   if missing_files:
-    new_training_set, new_testing_set = train_test_set_patches(selected_selection_dir,
-                                                               patches_axis_size_dir,
-                                                               axis,
-                                                               image_input_channels,
-                                                               brain_mask_channel,
-                                                               classification_mask,
-                                                               patch_size,
-                                                               excluded_patients=excluded_patients)
+    fold_data = generate_patches(patches_dir,
+                                 axis,
+                                 image_input_channels,
+                                 brain_mask_channel,
+                                 classification_mask,
+                                 patch_size,
+                                 k_fold_count,
+                                 excluded_patients=excluded_patients)
 
-    np.save(training_images_path, new_training_set.images)
-    np.save(training_labels_path, new_training_set.labels)
-    np.save(training_patients_path, new_training_set.patients)
+    assert len(fold_data) == k_fold_count
+    for i in range(k_fold_count):
+      fold_leftpadded = str(i).zfill(2)
 
-    np.save(testing_images_path, new_testing_set.images)
-    np.save(testing_labels_path, new_testing_set.labels)
-    np.save(testing_patients_path, new_testing_set.patients)
+      fold_data_set = fold_data[i]
 
-    return new_training_set, new_testing_set
+      fold_images_path = join(selected_dir, 'Fold_{}_Images.npy'.format(fold_leftpadded))
+      fold_labels_path = join(selected_dir, 'Fold_{}_Labels.npy'.format(fold_leftpadded))
+      fold_patients_path = join(selected_dir, 'Fold_{}_Patients.npy'.format(fold_leftpadded))
 
-  training_images = np.load(training_images_path)
-  training_labels = np.load(training_labels_path)
-  training_patients = np.load(training_patients_path)
+      np.save(fold_images_path, fold_data_set.images)
+      np.save(fold_labels_path, fold_data_set.labels)
+      np.save(fold_patients_path, fold_data_set.patients)
 
-  testing_images = np.load(testing_images_path)
-  testing_labels = np.load(testing_labels_path)
-  testing_patients = np.load(testing_patients_path)
+  training_images = np.array([])
+  training_labels = np.array([])
+  training_patients = np.array([])
+
+  testing_images = np.array([])
+  testing_labels = np.array([])
+  testing_patients = np.array([])
+
+  for i in range(k_fold_count):
+    fold_images_path = join(selected_dir, 'Fold_{}_Images.npy'.format(i))
+    fold_labels_path = join(selected_dir, 'Fold_{}_Labels.npy'.format(i))
+    fold_patients_path = join(selected_dir, 'Fold_{}_Patients.npy'.format(i))
+
+    if i == k_fold_selection:
+      testing_images = np.load(fold_images_path)
+      testing_labels = np.load(fold_labels_path)
+      testing_patients = np.load(fold_patients_path)
+    else:
+      fold_images = np.load(fold_images_path)
+      fold_labels = np.load(fold_labels_path)
+      fold_patients = np.load(fold_patients_path)
+
+      if not training_images.size:
+        training_images = fold_images
+        training_labels = fold_labels
+        training_patients = fold_patients
+      else:
+        training_images = np.append(training_images, fold_images, axis=0)
+        training_labels = np.append(training_labels, fold_labels, axis=0)
+        training_patients = np.append(training_patients, fold_patients, axis=0)
 
   training_set = DataWrapper(training_images,
                              training_labels,
@@ -114,128 +132,109 @@ def get_patch_selection(selected_patch_dir,
 
   return training_set, testing_set
 
-def train_test_set_patches(selected_selection_dir,
-                           patch_cache_location,
-                           axis,
-                           image_input_channels,
-                           brain_mask_channel,
-                           classification_mask,
-                           patch_size,
-                           patients=None,
-                           excluded_patients=None):
+def generate_patches(patch_cache_location,
+                     axis,
+                     image_input_channels,
+                     brain_mask_channel,
+                     classification_mask,
+                     patch_size,
+                     k_fold_count,
+                     patients=None,
+                     excluded_patients=None):
   """Generate new patch sets for testing and training for given input channels"""
 
   if excluded_patients is not None:
     excluded_patients = np.array(excluded_patients)
 
-  train_patients = None
-  test_patients = None
+  patient_nrs = None
 
-  training_patients_path = join(selected_selection_dir, 'Training_Patients.npy')
-  testing_patients_path = join(selected_selection_dir, 'Testing_Patients.npy')
+  if patients:  # patient override
+    print('Patient override:\n')
+    print(patients)
 
-  if isfile(training_patients_path) and isfile(testing_patients_path):
-    train_patients = np.load(training_patients_path)
-    test_patients = np.load(testing_patients_path)
-  else:
-    patient_nrs = None
+    patient_nrs = np.array(patients)
+  else:         # loop over patient nrs in input channel dirs
+    for input_channel in image_input_channels:
+      # get all dirs in given input channel path
+      input_channel_path = Path(input_channel['path'])
+      dirs = [f for f in input_channel_path.iterdir() if f.is_dir()]
 
-    if patients:  # patient override
-      print('Patient override:\n')
-      print(patients)
+      # get all patient ids listed in input channel
+      new_patients = []
 
-      patient_nrs = np.array(patients)
-    else:         # loop over patient nrs in input channel dirs
-      for input_channel in image_input_channels:
-        # get all dirs in given input channel path
-        input_channel_path = Path(input_channel['path'])
-        dirs = [f for f in input_channel_path.iterdir() if f.is_dir()]
+      for pat_dir in dirs:
+        pat_id = basename(normpath(pat_dir))
+        new_patients.append(pat_id)
 
-        # get all patient ids listed in input channel
-        new_patients = []
+      # calculate intersect in arrays so final patient nrs list only contains patients
+      # which are in all of the given input channels
+      if patient_nrs is not None:
+        patient_nrs = np.intersect1d(patient_nrs, np.array(new_patients))
+      else:
+        patient_nrs = np.array(new_patients)
 
-        for pat_dir in dirs:
-          pat_id = basename(normpath(pat_dir))
-          new_patients.append(pat_id)
+  patient_nrs.sort()
+  patient_nrs = np.array(patient_nrs)
 
-        # calculate intersect in arrays so final patient nrs list only contains patients
-        # which are in all of the given input channels
-        if patient_nrs is not None:
-          patient_nrs = np.intersect1d(patient_nrs, np.array(new_patients))
-        else:
-          patient_nrs = np.array(new_patients)
+  if excluded_patients is not None:
+    excluded_indices = np.isin(patient_nrs, excluded_patients)
+    patient_nrs = np.delete(patient_nrs, excluded_indices.nonzero(), 0)
 
-    patient_nrs.sort()
-    patient_nrs = np.array(patient_nrs)
-
-    if excluded_patients is not None:
-      excluded_indices = np.isin(patient_nrs, excluded_patients)
-      patient_nrs = np.delete(patient_nrs, excluded_indices.nonzero(), 0)
-
-    indices = tft_tools.random_indices(patient_nrs.shape[0],
-                                       int(patient_nrs.shape[0]/5.0))
-
-    train_patients = patient_nrs[~indices]
-    test_patients = patient_nrs[indices]
+  patient_shuffle = np.arange(patient_nrs.shape[0])
+  np_random_shuffle(patient_shuffle)
+  patient_nrs = patient_nrs[patient_shuffle]
+  del patient_shuffle
 
   json_image_channels = json.dumps(image_input_channels, sort_keys=True).encode('utf-8')
   input_channel_hash = str(hashlib.md5(json_image_channels).hexdigest())
   pat_size_hashed_cache_path = join(patch_cache_location, input_channel_hash)
 
   if not isdir(pat_size_hashed_cache_path):
-    mkdir(pat_size_hashed_cache_path)
+    mkdirs(pat_size_hashed_cache_path)
 
     with open(join(patch_cache_location,
                    input_channel_hash,
                    '_image_channels.json'), 'w') as o_file:
       json.dump(image_input_channels, o_file)
 
-  training_patches, training_labels = patients_patches(train_patients,
-                                                       pat_size_hashed_cache_path,
-                                                       image_input_channels,
-                                                       brain_mask_channel,
-                                                       classification_mask,
-                                                       patch_size,
-                                                       axis)
+  fold_data_sets = []
+  fold_size = patient_nrs.shape[0] / k_fold_count
+  start = 0
 
-  testing_patches, testing_labels = patients_patches(test_patients,
-                                                     pat_size_hashed_cache_path,
-                                                     image_input_channels,
-                                                     brain_mask_channel,
-                                                     classification_mask,
-                                                     patch_size,
-                                                     axis)
+  for fold in range(k_fold_count):
+    fold_patients = patient_nrs[start:start+math.ceil(fold_size)]
+    start += math.ceil(fold_size)
+
+    fold_size = (patient_nrs.shape[0] - start) / (k_fold_count - (fold + 1))
+
+    fold_patches, fold_labels = patients_patches(fold_patients,
+                                                 pat_size_hashed_cache_path,
+                                                 image_input_channels,
+                                                 brain_mask_channel,
+                                                 classification_mask,
+                                                 patch_size,
+                                                 axis)
+
+    perm0 = np.arange(fold_patches.shape[0])
+    np_random_shuffle(perm0)
+    fold_patches = fold_patches[perm0]
+    fold_labels = fold_labels[perm0]
+
+    fold_data_set = DataWrapper(fold_patches,
+                                fold_labels,
+                                reshape=False,
+                                patients=fold_patients)
+
+    fold_data_sets.append(fold_data_set)
 
   print('Fetched all patient data')
-  print('\nTraining Patches')
-  print(training_patches.shape)
-  print(training_labels.shape)
 
-  print('\nTesting Patches')
-  print(testing_patches.shape)
-  print(testing_labels.shape)
+  for fold in range(k_fold_count):
+    print('\nFold {} Patches'.format(fold))
+    print(fold_data_sets[fold].images.shape)
+    print(fold_data_sets[fold].labels.shape)
 
-  perm0 = np.arange(training_patches.shape[0])
-  np_random_shuffle(perm0)
-  training_patches = training_patches[perm0]
-  training_labels = training_labels[perm0]
-
-  perm0 = np.arange(testing_patches.shape[0])
-  np_random_shuffle(perm0)
-  testing_patches = testing_patches[perm0]
-  testing_labels = testing_labels[perm0]
-
-  training_set = DataWrapper(training_patches,
-                             training_labels,
-                             reshape=False,
-                             patients=train_patients)
-
-  testing_set = DataWrapper(testing_patches,
-                            testing_labels,
-                            reshape=False,
-                            patients=test_patients)
-
-  return training_set, testing_set
+  return fold_data_sets
 
 def patients_patches(patients,
                      pat_size_hashed_cache_path,
@@ -620,35 +619,26 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   print("Generating hard patches for {}".format(patient))
 
   # Make sure all the directories exist
-  selection = str(patch_selection).zfill(3)
+  selected_patch_dir = join(selected_patch_dir, axis)
+  patch_dir = join(patch_dir, axis)
 
-  selected_axis_dir = join(selected_patch_dir, axis)
-  patches_axis_dir = join(patch_dir, axis)
-
-  if not isdir(selected_axis_dir):
-    mkdir(selected_axis_dir)
-
-  if not isdir(patches_axis_dir):
-    mkdir(patches_axis_dir)
-
-  selected_axis_size_dir = join(selected_axis_dir, str(patch_size))
-  patches_axis_size_dir = join(patches_axis_dir, str(patch_size))
-
-  if not isdir(selected_axis_size_dir):
-    mkdir(selected_axis_size_dir)
-
-  if not isdir(patches_axis_size_dir):
-    mkdir(patches_axis_size_dir)
+  selected_patch_dir = join(selected_patch_dir, str(patch_size))
+  patch_dir = join(patch_dir, str(patch_size))
 
   json_image_channels = json.dumps(image_input_channels, sort_keys=True).encode('utf-8')
   input_channel_hash = str(hashlib.md5(json_image_channels).hexdigest())
-  selected_input_dir = join(selected_axis_size_dir, input_channel_hash)
-  pat_size_hashed_cache_path = join(patches_axis_size_dir, input_channel_hash)
 
-  if not isdir(selected_input_dir):
-    mkdir(selected_input_dir)
+  selected_patch_dir = join(selected_patch_dir, input_channel_hash)
+  patch_dir = join(patch_dir, input_channel_hash)
 
-  selected_selection_dir = join(selected_input_dir, 'Selection{}'.format(selection))
+  selection = str(patch_selection).zfill(3)
+  selected_patch_dir = join(selected_patch_dir, 'Selection{}'.format(selection))
+
+  if not isdir(patch_dir):
+    mkdirs(patch_dir)
+
+  if not isdir(selected_patch_dir):
+    mkdirs(selected_patch_dir)
 
   # Actually get the wrongly classified patches
   unique_labels, unique_labels_counts = np.unique(gold_standard, return_counts=True)
@@ -715,9 +705,7 @@ def extract_hard_patches_from_wis(selected_patch_dir,
 
     all_patches = np.concatenate((wrong_pred_patches, correct_pred_patches, random_patches),
                                  axis=0)
-    print(all_patches.shape)
-    a = np.rot90(all_patches, 1, (2, 1))
-    print(a.shape)
+
     all_patches = np.append(all_patches,
                             np.rot90(all_patches, 1, (2, 1)),
                             axis=0)
@@ -757,14 +745,14 @@ def extract_hard_patches_from_wis(selected_patch_dir,
       new_patches = np.append(new_patches, all_patches, axis=0)
       new_labels = np.append(new_labels, all_labels, axis=0)
 
-  pat_images_cache_path = join(pat_size_hashed_cache_path, '{}_images.npy'.format(patient))
-  pat_labels_cache_path = join(pat_size_hashed_cache_path, '{}_labels.npy'.format(patient))
+  pat_images_cache_path = join(patch_dir, '{}_images.npy'.format(patient))
+  pat_labels_cache_path = join(patch_dir, '{}_labels.npy'.format(patient))
 
   np.save(pat_images_cache_path, new_patches)
   np.save(pat_labels_cache_path, new_labels)
 
-  selection_training_images_file = join(selected_selection_dir, 'Training_Images.npy')
-  selection_training_labels_file = join(selected_selection_dir, 'Training_Labels.npy')
+  selection_training_images_file = join(selected_patch_dir, 'Training_Images.npy')
+  selection_training_labels_file = join(selected_patch_dir, 'Training_Labels.npy')
 
   if isfile(selection_training_images_file):
     remove(selection_training_images_file)
