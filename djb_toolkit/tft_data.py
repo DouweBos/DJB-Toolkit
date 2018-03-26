@@ -1,6 +1,6 @@
 """Collection of reusable data helper functions."""
 
-from os import mkdirs, remove
+from os import makedirs, remove
 from os.path import isdir, isfile, join, basename, normpath
 from pathlib import Path
 import json
@@ -43,10 +43,10 @@ def get_patch_selection(selected_patch_dir,
   selected_dir = join(selected_dir, 'Fold_Selection_{}'.format(selection))
 
   if not isdir(selected_dir):
-    mkdirs(selected_dir)
+    makedirs(selected_dir)
 
   if not isdir(patches_dir):
-    mkdirs(patches_dir)
+    makedirs(patches_dir)
 
   missing_files = False
 
@@ -190,7 +190,7 @@ def generate_patches(patch_cache_location,
   pat_size_hashed_cache_path = join(patch_cache_location, input_channel_hash)
 
   if not isdir(pat_size_hashed_cache_path):
-    mkdirs(pat_size_hashed_cache_path)
+    makedirs(pat_size_hashed_cache_path)
 
     with open(join(patch_cache_location,
                    input_channel_hash,
@@ -205,7 +205,8 @@ def generate_patches(patch_cache_location,
     fold_patients = patient_nrs[start:start+math.ceil(fold_size)]
     start += math.ceil(fold_size)
 
-    fold_size = (patient_nrs.shape[0] - start) / (k_fold_count - (fold + 1))
+    if fold < (k_fold_count - 1):
+      fold_size = (patient_nrs.shape[0] - start) / (k_fold_count - (fold + 1))
 
     fold_patches, fold_labels = patients_patches(fold_patients,
                                                  pat_size_hashed_cache_path,
@@ -635,10 +636,10 @@ def extract_hard_patches_from_wis(selected_patch_dir,
   selected_patch_dir = join(selected_patch_dir, 'Selection{}'.format(selection))
 
   if not isdir(patch_dir):
-    mkdirs(patch_dir)
+    makedirs(patch_dir)
 
   if not isdir(selected_patch_dir):
-    mkdirs(selected_patch_dir)
+    makedirs(selected_patch_dir)
 
   # Actually get the wrongly classified patches
   unique_labels, unique_labels_counts = np.unique(gold_standard, return_counts=True)
