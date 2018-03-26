@@ -89,7 +89,9 @@ def write_tf_results(graph=None,
                      post_proc_min_count=None,
                      post_proc_patch_size=None,
                      restore_checkpoint=None,
-                     custom_settings=None):
+                     custom_settings=None,
+                     k_fold_selection=0,
+                     k_fold_count=4):
   """Write given values to a results excel sheet."""
 
   if os.path.exists('tensorflow_results.xlsx'):
@@ -117,7 +119,10 @@ def write_tf_results(graph=None,
   worksheet['P1'] = 'Post Proc Size'
   worksheet['Q1'] = 'Post Proc Min Count'
   worksheet['R1'] = 'Retore Checkpoint'
-  worksheet['S1'] = 'Custom Settings'
+  worksheet['S1'] = 'K_Fold Selection'
+  worksheet['T1'] = 'K_Fold Count'
+  worksheet['U1'] = 'Custom Settings'
+
 
   worksheet.append([graph,
                     start_date,
@@ -137,6 +142,8 @@ def write_tf_results(graph=None,
                     post_proc_patch_size,
                     post_proc_min_count,
                     restore_checkpoint,
+                    k_fold_selection,
+                    k_fold_count,
                     custom_settings
                    ])
 
