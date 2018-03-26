@@ -57,7 +57,8 @@ class TFModel(object):
                post_proc_patch_size=5,
                post_proc_min_count=10,
                store_hard_patches=False,
-               k_fold_cross_validation=4,
+               k_fold_cross_validation_selection=0,
+               k_fold_cross_validation_count=4,
               ):
     """Init TF Model super class object. Should only be implemented, never used directly.
     """
@@ -135,6 +136,8 @@ class TFModel(object):
                                                        class_mask_channel,
                                                        patch_size,
                                                        patch_selection,
+                                                       k_fold_cross_validation_selection,
+                                                       k_fold_cross_validation_count,
                                                        excluded_patients=excluded_patients)
 
     self.train = train_set
