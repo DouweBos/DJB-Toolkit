@@ -32,7 +32,6 @@ def get_patch_selection(selected_patch_dir,
   If not: JUST DO IT. Returns train and test set paths"""
 
   selection = str(patch_selection).zfill(3)
-  k_fold_selection = str(k_fold_selection).zfill(2)
 
   selected_dir = join(selected_patch_dir, axis, str(patch_size))
   patches_dir = join(patch_dir, axis, str(patch_size))
@@ -98,9 +97,10 @@ def get_patch_selection(selected_patch_dir,
   testing_patients = np.array([])
 
   for i in range(k_fold_count):
-    fold_images_path = join(selected_dir, 'Fold_{}_Images.npy'.format(i))
-    fold_labels_path = join(selected_dir, 'Fold_{}_Labels.npy'.format(i))
-    fold_patients_path = join(selected_dir, 'Fold_{}_Patients.npy'.format(i))
+    i_padded = str(i).zfill(2)
+    fold_images_path = join(selected_dir, 'Fold_{}_Images.npy'.format(i_padded))
+    fold_labels_path = join(selected_dir, 'Fold_{}_Labels.npy'.format(i_padded))
+    fold_patients_path = join(selected_dir, 'Fold_{}_Patients.npy'.format(i_padded))
 
     if i == k_fold_selection:
       testing_images = np.load(fold_images_path)
