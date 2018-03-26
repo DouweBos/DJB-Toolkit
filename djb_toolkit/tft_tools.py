@@ -11,6 +11,7 @@ from itertools import product
 import requests
 
 import numpy as np
+from numpy.random import choice as np_random_choice
 import openpyxl
 
 import djb_toolkit
@@ -21,7 +22,7 @@ def get_settings():
   """Get settings defined in settings.json file
 
     Run djb_toolkit.setup with a settings file path first.
-    
+
     Otherwise this function will return `None`"""
 
   if not djb_toolkit.SETTINGS_FILE:
@@ -83,11 +84,14 @@ def write_tf_results(graph=None,
                      image_width=None,
                      image_height=None,
                      image_channels=None,
+                     axis=None,
                      classifying_threshold=None,
                      post_proc_min_count=None,
                      post_proc_patch_size=None,
                      restore_checkpoint=None,
-                     custom_settings=None):
+                     custom_settings=None,
+                     k_fold_selection=0,
+                     k_fold_count=4):
   """Write given values to a results excel sheet."""
 
   if os.path.exists('tensorflow_results.xlsx'):
@@ -110,11 +114,15 @@ def write_tf_results(graph=None,
   worksheet['K1'] = 'Image Width'
   worksheet['L1'] = 'Image Height'
   worksheet['M1'] = 'Image Channels'
-  worksheet['N1'] = 'Classifications'
-  worksheet['O1'] = 'Post Proc Size'
-  worksheet['P1'] = 'Post Proc Min Count'
-  worksheet['Q1'] = 'Retore Checkpoint'
-  worksheet['R1'] = 'Custom Settings'
+  worksheet['N1'] = 'Axis'
+  worksheet['O1'] = 'Classifications'
+  worksheet['P1'] = 'Post Proc Size'
+  worksheet['Q1'] = 'Post Proc Min Count'
+  worksheet['R1'] = 'Retore Checkpoint'
+  worksheet['S1'] = 'K_Fold Selection'
+  worksheet['T1'] = 'K_Fold Count'
+  worksheet['U1'] = 'Custom Settings'
+
 
   worksheet.append([graph,
                     start_date,
@@ -129,12 +137,15 @@ def write_tf_results(graph=None,
                     image_width,
                     image_height,
                     image_channels,
+                    axis,
                     classifying_threshold,
                     post_proc_patch_size,
                     post_proc_min_count,
                     restore_checkpoint,
+                    k_fold_selection,
+                    k_fold_count,
                     custom_settings
-                    ])
+                   ])
 
   workbook.save('tensorflow_results.xlsx')
 
@@ -160,23 +171,74 @@ def represents_int(s):
     return False
 
 def axis_str_to_int(axis):
-  """Convert axis string into an xyz axis integer"""
+  """Convert axis string into an xyz axis integer.
 
-  if axis.lower() == 'axiaal':
-    return 0
+    Returns -1 if axis is not found and given argument is not representable as an Integer
+  """
+
+  axis_int = -1
+
+  if represents_int(axis):
+    axis_int = axis
+  elif axis.lower() == 'axiaal':
+    axis_int = 0
   elif axis.lower() == 'coronaal':
-    return 1
+    axis_int = 1
   elif axis.lower() == 'sagittaal':
-    return 2
+    axis_int = 2
   elif axis.lower() == 'a':
-    return 0
+    axis_int = 0
   elif axis.lower() == 'c':
-    return 1
+    axis_int = 1
   elif axis.lower() == 'sr':
-    return 2
+    axis_int = 2
   elif axis.lower() == 'sl':
-    return 3
-  elif represents_int(axis):
-    return axis
+    axis_int = 3
+
+  return axis_int
+
+def reshape_2d_scan_for_axis(scan, axis):
+  """Reshape 2d scan for given axis into an actual 2d object.
+  This reshapes images with shape `(398, 1, 430)` into shape `(398, 430)` etc."""
+
+  axis = axis_str_to_int(axis)
+  scan = np.copy(scan)
+
+  if axis == 1:
+    scan = scan.reshape((scan.shape[0],
+                         scan.shape[2]))
   else:
-    return -1
+    scan = scan.reshape((scan.shape[0],
+                         scan.shape[1]))
+
+  return scan
+
+
+def reshape_2d_to_3d_scan_for_axis(scan, axis):
+  """Reshape 2d scan for given axis into an actual 2d object.
+  This reshapes images with shape `(398, 430)` into shape `(398, 1, 430)` etc."""
+
+  axis = axis_str_to_int(axis)
+  scan = np.copy(scan)
+
+  if axis == 1:
+    scan = scan.reshape((scan.shape[0],
+                         1,
+                         scan.shape[1]))
+  elif axis == 2:
+    scan = scan.reshape((scan.shape[0],
+                         scan.shape[1],
+                         1))
+
+  return scan
+
+def random_indices(size, max_count):
+  """Get max max_count random indices for an array with given size
+
+  Returns an numpy array of boolean indices"""
+  indices = np.full(size, False, bool)
+  randices = np_random_choice(np.arange(indices.shape[0]), max_count, replace=False)
+  indices[randices] = True
+  del randices
+
+  return indices
