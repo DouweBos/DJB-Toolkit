@@ -552,7 +552,7 @@ class TFModel(object):
     training_sum_dice = []
 
     for patient in patients:
-      print('WIS {}'.format(patient))
+      print('WIS {}'.format(patient), end='\r', flush=True)
 
       image_filepaths = []
 
