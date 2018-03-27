@@ -66,7 +66,7 @@ class TFModel(object):
     print('Init graph - ', self.__class__.__name__)
 
     if classifying_threshold is None:
-      classifying_threshold = [0.5, 0.5]
+      classifying_threshold = [[0.5, 0.5]]
 
     if classifying_mask is None:
       classifying_mask = tft_tools.get_settings()['default_values']['tf_model']['classifying_mask']
@@ -97,7 +97,7 @@ class TFModel(object):
     self.alpha = alpha
     self.training_keep_prob = training_keep_prob
     self.classifying_threshold = classifying_threshold
-    self.training_threshold = ones(len(classifying_threshold)) / len(classifying_threshold)
+    self.training_threshold = ones(len(classifying_threshold[0])) / len(classifying_threshold[0])
     self.classifying_mask = classifying_mask
     self.epochs = epochs
     self.batch_size = batch_size
@@ -110,6 +110,9 @@ class TFModel(object):
 
     self.patch_selection = patch_selection
     self.axis = axis
+
+    self.k_fold_cross_validation_selection = k_fold_cross_validation_selection
+    self.k_fold_cross_validation_count = k_fold_cross_validation_count
 
     self.store_hard_patches = store_hard_patches
 
@@ -142,6 +145,8 @@ class TFModel(object):
 
     self.train = train_set
     self.test = test_set
+
+    self.start = datetime.now()
 
   def get_graph_settings(self,
                          test_accuracy_avg=0.0,
@@ -193,23 +198,20 @@ class TFModel(object):
   def run(self, sess):
     """Train and test the defined neural network."""
 
-    start = datetime.now()
+    self.start = datetime.now()
 
     # Import data
-    train_data = self.train
-    test_data = self.test
-
-    print('Train data patch count: ', len(train_data.images))
-    print('Test data patch count: ', len(test_data.images))
+    print('Train data patch count: ', len(self.train.images))
+    print('Test data patch count: ', len(self.test.images))
 
     print('')
 
-    unique_predictions, prediction_counts = unique(argmax(train_data.labels, axis=1),
+    unique_predictions, prediction_counts = unique(argmax(self.train.labels, axis=1),
                                                    return_counts=True)
     counts = dict(zip(unique_predictions, prediction_counts))
     print("Training label counts: {}".format(counts))
 
-    unique_predictions, prediction_counts = unique(argmax(test_data.labels, axis=1),
+    unique_predictions, prediction_counts = unique(argmax(self.test.labels, axis=1),
                                                    return_counts=True)
     counts = dict(zip(unique_predictions, prediction_counts))
     print("Testing label counts: {}".format(counts))
@@ -257,7 +259,7 @@ class TFModel(object):
 
     # Setup Filewriters
     graph_location = join(self.log_dir, (self.graph_name
-                                         + '_' + start.strftime('%Y-%m-%d %H-%M-%S')))
+                                         + '_' + self.start.strftime('%Y-%m-%d %H-%M-%S')))
 
     os.mkdir(graph_location)
     print('Saving graph to: %s' % graph_location)
@@ -287,23 +289,30 @@ class TFModel(object):
 
     # Set checkpoint dir and mkdir
     checkpoint_dir = join(self.save_dir, (self.graph_name
-                                          + "-" + start.strftime('%Y-%m-%d %H-%M-%S')))
+                                          + "-" + self.start.strftime('%Y-%m-%d %H-%M-%S')))
     os.mkdir(checkpoint_dir)
 
+    ## TODO:
+    ## Rewrite everything from here ##
+    ## FUCK MY LIFE :D ##
+    ## I feel like Luigi, refactor the refactor ##
+
     # Train the initialized graph
-    self.__train_graph(train_data=train_data,
-                       sess=sess,
-                       merged=merged,
-                       accuracy=accuracy,
-                       x=x,
-                       y_=y_,
-                       keep_prob=keep_prob,
-                       class_th=class_th,
-                       test_writer=test_writer,
-                       train_step=train_step,
-                       train_writer=train_writer,
-                       checkpoint_dir=checkpoint_dir,
-                       saver=saver)
+    testing_sum, dice_sum = self.__train_graph(sess=sess,
+                                               merged=merged,
+                                               accuracy=accuracy,
+                                               x=x,
+                                               y_=y_,
+                                               y_convsm=y_convsm,
+                                               keep_prob=keep_prob,
+                                               class_th=class_th,
+                                               test_writer=test_writer,
+                                               train_step=train_step,
+                                               train_writer=train_writer,
+                                               checkpoint_dir=checkpoint_dir,
+                                               saver=saver,
+                                               prediction=prediction
+                                              )
 
     # Save trained path to checkpoint dir
     save_path = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt')
@@ -313,146 +322,35 @@ class TFModel(object):
     # Post 'finished training' to my personal slack
     tft_tools.post_to_slack((self.graph_name
                              + ' finished training.\n'
-                             + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
+                             + 'Start: ' + self.start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
                              + 'Saved model to: ' + checkpoint_dir))
-
-    # Calculate post training test accuracy
-    test_accuracy_avg = self.__test_graph(test_data=test_data,
-                                          sess=sess,
-                                          accuracy=accuracy,
-                                          x=x,
-                                          y_=y_,
-                                          keep_prob=keep_prob,
-                                          class_th=class_th)
-    del test_data
-
-    print('Final test accuracy %g' % test_accuracy_avg)
-
-    # Post 'finished testing' to my personal slack
-    tft_tools.post_to_slack((self.graph_name
-                             + ' finished testing.\n'
-                             + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
-                             + 'Average testing accuracy: ' + str(test_accuracy_avg)))
-
-    # for i in range(train_data.num_examples):
-    #   print(i)
-
-    #   batch = train_data.images[i:i+1]
-
-    #   pred = sess.run(prediction,
-    #                   feed_dict={
-    #                       x: batch,                                         # pylint: disable=C0330
-    #                       y_: ones((batch.shape[0],                      # pylint: disable=C0330
-    #                                 len(self.classifying_threshold))),   # pylint: disable=C0330
-    #                       keep_prob: 1.0,                                   # pylint: disable=C0330
-    #                       class_th: self.classifying_threshold
-    #                   })
-
-    #   print(str(pred) + ' - ' + str(train_data.labels[i:i+1]))
-
-    del train_data
-
-    # Calculate post training dice score
-    dice_avg = 0.0
-
-    if not self.skip_whole_image_segmentation:
-      print('Whole Image Segmentation')
-      if self.axis != '3d':
-        testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_2d(self.image_input_channels,
-                                                                                 self.class_mask_channel,
-                                                                                 tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
-                                                                                 self.axis,
-                                                                                 checkpoint_dir=checkpoint_dir,
-                                                                                 sess=sess,
-                                                                                 prediction=prediction,
-                                                                                 y_convsm=y_convsm,
-                                                                                 x=x,
-                                                                                 y_=y_,
-                                                                                 keep_prob=keep_prob,
-                                                                                 class_th=class_th,
-                                                                                 patch_size=self.image_size,
-                                                                                 batch_size=self.batch_size,
-                                                                                 classifying_threshold=self.classifying_threshold,
-                                                                                 segment_training_patients=True)
-      else:
-        testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_3d(self.image_input_channels,
-                                                                                 self.class_mask_channel,
-                                                                                 tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
-                                                                                 checkpoint_dir=checkpoint_dir,
-                                                                                 sess=sess,
-                                                                                 prediction=prediction,
-                                                                                 x=x,
-                                                                                 y_=y_,
-                                                                                 keep_prob=keep_prob,
-                                                                                 class_th=class_th,
-                                                                                 patch_size=self.image_size,
-                                                                                 batch_size=self.batch_size,
-                                                                                 classifying_threshold=self.classifying_threshold,
-                                                                                 segment_training_patients=False)
-
-    print('Testing DICE coefficient %g' % testing_dice_avg)
-    print('Training DICE coefficient %g' % training_dice_avg)
-
-    # Post 'finished whole image segmentation' to my personal slack
-    tft_tools.post_to_slack((self.graph_name
-                             + ' finished whole image segmentation.\n'
-                             + 'Start: ' + start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
-                             + 'Average Testing DICE coefficient: ' + str(testing_dice_avg) + '\n'
-                             + 'Average Training DICE coefficient: ' + str(training_dice_avg)))
-
-    end = datetime.now()
-
-    # Write final results summary to excel sheet and personal slack
-    classifying_threshold_str = ', '.join(['{:.5f}'.format(x)
-                                           for x in self.classifying_threshold])
-
-    #Write results to excel sheet
-    tft_tools.write_tf_results(graph=self.graph_name,
-                               start_date=start.isoformat(),
-                               end_date=end.isoformat(),
-                               test_accuracy=test_accuracy_avg,
-                               dice_score=testing_dice_avg,
-                               alpha=self.alpha,
-                               training_dropout=self.training_keep_prob,
-                               epochs=self.epochs * ~self.skip_training,
-                               batch_size=self.batch_size,
-                               num_fc=self.num_fc,
-                               image_width=self.image_size,
-                               image_height=self.image_size,
-                               image_channels=self.input_channel_config,
-                               axis=self.axis,
-                               classifying_threshold=classifying_threshold_str,
-                               post_proc_min_count=self.post_proc_min_count,
-                               post_proc_patch_size=self.post_proc_patch_size,
-                               restore_checkpoint=str(self.restore_checkpoint),
-                               custom_settings=self.get_custom_settings())
-
-    tft_tools.post_to_slack(self.get_graph_settings(test_accuracy_avg=test_accuracy_avg,
-                                                    dice_avg=dice_avg,
-                                                    save_path=save_path))
 
     # Close writers to prevent crash in next session
     train_writer.close()
     test_writer.close()
 
-    return save_path, test_accuracy_avg, dice_avg
+    return save_path, testing_sum, dice_sum
 
   # pylint: disable=C0103
   def __train_graph(self,
-                    train_data=None,
                     sess=None,
                     merged=None,
                     accuracy=None,
                     x=None,
                     y_=None,
+                    y_convsm=None,
                     keep_prob=None,
                     class_th=None,
                     test_writer=None,
                     train_step=None,
                     train_writer=None,
                     checkpoint_dir=None,
-                    saver=None):
+                    saver=None,
+                    prediction=None):
     """Train graph with given train data"""
+
+    dice_sum_sum = []
+    testing_sum = []
 
     if not self.skip_training:
       start_time = int(time())
@@ -460,7 +358,7 @@ class TFModel(object):
 
       #Train with `epochs` of batches
       for i in range(self.epochs):
-        batch = train_data.next_batch(self.batch_size)
+        batch = self.train.next_batch(self.batch_size)
 
         #Logs
         if i % 100 == 0:
@@ -497,12 +395,95 @@ class TFModel(object):
         if i % 100 == 0:
           train_writer.add_summary(summary, i)
 
-        if i % (self.epochs/10) == 0 and i > 0:
-          _ = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt', global_step=i)
+        if (i + 1) % (self.epochs/10) == 0:
+          _ = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt', global_step=(i+1))
+
+          # Calculate post training test accuracy
+          test_accuracy_avg = self.__test_graph(sess=sess,
+                                                accuracy=accuracy,
+                                                x=x,
+                                                y_=y_,
+                                                keep_prob=keep_prob,
+                                                class_th=class_th)
+
+          # Post 'finished testing' to my personal slack
+          tft_tools.post_to_slack((self.graph_name
+                                   + ' finished testing.\n'
+                                   + 'Start: ' + self.start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
+                                   + 'Epoch: ' + str(i + 1) + '\n'
+                                   + 'Average testing accuracy: ' + str(test_accuracy_avg)))
+
+          testing_sum.append(test_accuracy_avg)
+
+          dice_sum = []
+
+          for th in self.classifying_threshold:
+            testing_dice_avg, training_dice_avg = 0.0, 0.0
+
+            if self.axis != '3d':
+              testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_2d(tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
+                                                                                       checkpoint_dir=checkpoint_dir,
+                                                                                       sess=sess,
+                                                                                       prediction=prediction,
+                                                                                       y_convsm=y_convsm,
+                                                                                       x=x,
+                                                                                       y_=y_,
+                                                                                       keep_prob=keep_prob,
+                                                                                       class_th=class_th,
+                                                                                       classifying_threshold=th)
+              dice_sum.append([testing_dice_avg, training_dice_avg])
+            else:
+              testing_dice_avg, training_dice_avg = self.__whole_image_segmentation_3d(tft_tools.get_settings()['default_values']['tf_model']['classifying_mask'],
+                                                                                       checkpoint_dir=checkpoint_dir,
+                                                                                       sess=sess,
+                                                                                       prediction=prediction,
+                                                                                       x=x,
+                                                                                       y_=y_,
+                                                                                       keep_prob=keep_prob,
+                                                                                       class_th=class_th,
+                                                                                       classifying_threshold=th)
+              dice_sum.append([testing_dice_avg, training_dice_avg])
+
+            # Post 'finished whole image segmentation' to my personal slack
+            tft_tools.post_to_slack((self.graph_name
+                                     + ' finished whole image segmentation.\n'
+                                     + 'Start: ' + self.start.strftime('%Y-%m-%d %H-%M-%S') + '\n'
+                                     + 'Average Testing DICE coefficient: ' + str(testing_dice_avg) + '\n'
+                                     + 'Average Training DICE coefficient: ' + str(training_dice_avg)))
+
+          dice_sum_sum.append(dice_sum)
+
+          # Write final results summary to excel sheet and personal slack
+          classifying_threshold_str = [y for y in [x for x in self.classifying_threshold]]
+
+          #Write results to excel sheet
+          tft_tools.write_tf_results(graph=self.graph_name,
+                                     start_date=self.start.isoformat(),
+                                     end_date=datetime.now().isoformat(),
+                                     test_accuracy=test_accuracy_avg,
+                                     dice_score=str(dice_sum),
+                                     alpha=self.alpha,
+                                     training_dropout=self.training_keep_prob,
+                                     epochs=(i + 1) * ~self.skip_training,
+                                     batch_size=self.batch_size,
+                                     num_fc=self.num_fc,
+                                     image_width=self.image_size,
+                                     image_height=self.image_size,
+                                     image_channels=self.input_channel_config,
+                                     axis=self.axis,
+                                     classifying_threshold=classifying_threshold_str,
+                                     post_proc_min_count=self.post_proc_min_count,
+                                     post_proc_patch_size=self.post_proc_patch_size,
+                                     restore_checkpoint=str(self.restore_checkpoint),
+                                     custom_settings=self.get_custom_settings(),
+                                     k_fold_selection=self.k_fold_cross_validation_selection,
+                                     k_fold_count=self.k_fold_cross_validation_count
+                                    )
+
+    return testing_sum, dice_sum_sum
 
   # pylint: disable=C0103
   def __test_graph(self,
-                   test_data=None,
                    sess=None,
                    accuracy=None,
                    x=None,
@@ -517,13 +498,13 @@ class TFModel(object):
       #Test after training
       test_results = []
 
-      patches_left = test_data.num_examples
+      patches_left = self.test.num_examples
 
       for i in range(0, math.ceil(patches_left/self.batch_size)):
         current_pos = i * self.batch_size
 
-        batch = test_data.images[current_pos: current_pos + min(self.batch_size, patches_left)]
-        labels = test_data.labels[current_pos: current_pos + min(self.batch_size, patches_left)]
+        batch = self.test.images[current_pos: current_pos + min(self.batch_size, patches_left)]
+        labels = self.test.labels[current_pos: current_pos + min(self.batch_size, patches_left)]
 
         test_accuracy = sess.run(accuracy,
                                  feed_dict={
@@ -544,10 +525,7 @@ class TFModel(object):
   # pylint: disable=invalid-name
   # pylint: disable=R0914
   def __whole_image_segmentation_2d(self,
-                                    image_input_channels,
-                                    gold_standard_channel,
                                     roi_channel,
-                                    axis,
                                     checkpoint_dir=None,
                                     sess=None,
                                     prediction=None,
@@ -556,24 +534,16 @@ class TFModel(object):
                                     y_=None,
                                     keep_prob=None,
                                     class_th=None,
-                                    patch_size=13,
-                                    batch_size=100,
-                                    classifying_threshold=None,
-                                    segment_training_patients=False):
+                                    classifying_threshold=None):
     """Segment a patient's image based on what the network learned."""
 
-    axis = tft_tools.axis_str_to_int(axis)
-
-    if classifying_threshold is None:
-      classifying_threshold = [0.5, 0.5]
+    axis = tft_tools.axis_str_to_int(self.axis)
 
     training_patients = self.train.patients
     testing_patients = self.test.patients
 
     patients = list(testing_patients)
-
-    if segment_training_patients:
-      patients.extend(list(training_patients))
+    patients.extend(list(training_patients))
 
     roi_channel_image = sitk.ReadImage(roi_channel)
     roi_channel_image = sitk.GetArrayFromImage(roi_channel_image)
@@ -587,21 +557,21 @@ class TFModel(object):
 
       image_filepaths = []
 
-      for input_channel in image_input_channels:
+      for input_channel in self.image_input_channels:
         image_filepaths.append(join(input_channel['path'],
                                     patient,
                                     input_channel['filename'].format(patient)))
 
-      gold_standard_path = join(gold_standard_channel['path'],
+      gold_standard_path = join(self.class_mask_channel['path'],
                                 patient,
-                                gold_standard_channel['filename'].format(patient))
+                                self.class_mask_channel['filename'].format(patient))
 
       gold_standard_image = sitk.ReadImage(gold_standard_path)
       gold_standard_image = sitk.GetArrayFromImage(gold_standard_image)
       gold_standard_image = tft_tools.reshape_2d_scan_for_axis(gold_standard_image, axis)
       gold_standard_image[gold_standard_image == -1024] = 0
 
-      image_patches = tft_data.images_to_patches_2d(image_filepaths, patch_size, axis)
+      image_patches = tft_data.images_to_patches_2d(image_filepaths, self.image_size, axis)
       image_patches = image_patches.images[roi_channel_image.nonzero()]
       image_patches = DataWrapper(image_patches,
                                   zeros((image_patches.shape[0], self.classifications)))
@@ -610,20 +580,20 @@ class TFModel(object):
       prob_labels = array([])
       patches_left = image_patches.num_examples
 
-      for i in range(0, math.ceil(patches_left/batch_size)):
-        current_pos = i*batch_size
+      for i in range(0, math.ceil(patches_left/self.batch_size)):
+        current_pos = i*self.batch_size
 
-        batch = image_patches.images[current_pos: current_pos + min(batch_size, patches_left)]
+        batch = image_patches.images[current_pos: current_pos + min(self.batch_size, patches_left)]
 
         pred, prob = sess.run([prediction, y_convsm],
                               feed_dict={
                                   x: batch,                                         # pylint: disable=C0330
                                   y_: ones((batch.shape[0],                         # pylint: disable=C0330
-                                            len(classifying_threshold))),           # pylint: disable=C0330
+                                            len(classifying_threshold))),      # pylint: disable=C0330
                                   keep_prob: 1.0,                                   # pylint: disable=C0330
                                   class_th: classifying_threshold
                               })
-        center_pixel_index = int(((patch_size * patch_size) - 1) / 2)
+        center_pixel_index = int(((self.image_size * self.image_size) - 1) / 2)
         bool_patches = mean((batch == 0.0)[:, center_pixel_index], axis=1) > 0
         pred[bool_patches] = 0
         prob[bool_patches] = 0.0
@@ -635,7 +605,7 @@ class TFModel(object):
           pred_labels = append(pred_labels, pred, axis=0)
           prob_labels = append(prob_labels, prob, axis=0)
 
-        patches_left -= batch_size
+        patches_left -= self.batch_size
 
       output_pred = zeros((0, 0))
       output_prob = full((len(classifying_threshold), 0, 0), 0.0)
@@ -753,8 +723,6 @@ class TFModel(object):
     # pylint: disable=invalid-name
   # pylint: disable=R0914
   def __whole_image_segmentation_3d(self,
-                                    image_input_channels,
-                                    gold_standard_channel,
                                     roi_channel,
                                     checkpoint_dir=None,
                                     sess=None,
@@ -763,21 +731,14 @@ class TFModel(object):
                                     y_=None,
                                     keep_prob=None,
                                     class_th=None,
-                                    patch_size=13,
-                                    batch_size=100,
-                                    classifying_threshold=None,
-                                    segment_training_patients=False):
+                                    classifying_threshold=None):
     """Segment a patient's image based on what the network learned."""
-
-    if classifying_threshold is None:
-      classifying_threshold = [0.5, 0.5]
 
     training_patients = self.train.patients
     testing_patients = self.test.patients
 
     patients = list(testing_patients)
-    if segment_training_patients:
-      patients.extend(list(training_patients))
+    patients.extend(list(training_patients))
 
     roi_channel_image = sitk.ReadImage(roi_channel)
     roi_channel_image = sitk.GetArrayFromImage(roi_channel_image)
@@ -797,14 +758,14 @@ class TFModel(object):
 
       image_filepaths = []
 
-      for input_channel in image_input_channels:
+      for input_channel in self.image_input_channels:
         image_filepaths.append(join(input_channel['path'],
                                     patient,
                                     input_channel['filename'].format(patient)))
 
-      gold_standard_path = join(gold_standard_channel['path'],
+      gold_standard_path = join(self.class_mask_channel['path'],
                                 patient,
-                                gold_standard_channel['filename'].format(patient))
+                                self.class_mask_channel['filename'].format(patient))
 
       gold_standard_image = sitk.ReadImage(gold_standard_path)
       gold_standard_image = sitk.GetArrayFromImage(gold_standard_image)
@@ -833,7 +794,7 @@ class TFModel(object):
 
         def patches(axis):
           """Get 3d patches for given axis"""
-          return tft_data.images_to_patches_3d(image_filepaths, patch_size, axis)
+          return tft_data.images_to_patches_3d(image_filepaths, self.image_size, axis)
 
         #forgive me for I have sinned
         image_patches = concatenate((patches(0).images[roi_channel_coord_a[floor:ceil, 0],
@@ -850,15 +811,15 @@ class TFModel(object):
 
         patches_left = image_patches.num_examples
 
-        for k in range(0, math.ceil(patches_left/batch_size)):
-          current_pos = k*batch_size
+        for k in range(0, math.ceil(patches_left/self.batch_size)):
+          current_pos = k*self.batch_size
 
-          batch = image_patches.images[current_pos: current_pos + min(batch_size, patches_left)]
+          batch = image_patches.images[current_pos: current_pos + min(self.batch_size, patches_left)]
           max_batch = amax(batch)
 
           if max_batch == 0.0:
             pred_labels.extend(zeros((len(batch))))
-            patches_left -= batch_size
+            patches_left -= self.batch_size
           else:
             pred = sess.run(prediction,
                             feed_dict={
@@ -869,12 +830,12 @@ class TFModel(object):
                                 class_th: classifying_threshold
                             })
 
-            center_pixel_index = int(((patch_size * patch_size) - 1) / 2)
+            center_pixel_index = int(((self.image_size * self.image_size) - 1) / 2)
             bool_patches = mean((batch == 0.0)[:, center_pixel_index], axis=1) > 0
             pred[bool_patches] = 0
 
             pred_labels.extend(pred)
-            patches_left -= batch_size
+            patches_left -= self.batch_size
 
       pred_labels = array(pred_labels)
       output_pred = zeros((398, 430, 374))
