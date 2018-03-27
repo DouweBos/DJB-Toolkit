@@ -102,7 +102,7 @@ class TFModel(object):
     self.epochs = epochs
     self.batch_size = batch_size
     self.num_fc = num_fc
-    self.classifications = len(classifying_threshold)
+    self.classifications = len(classifying_threshold[0])
     self.input_channel_config = input_channel_config
 
     self.post_proc_patch_size = post_proc_patch_size
@@ -154,8 +154,7 @@ class TFModel(object):
                          save_path=''):
     """Return graph model settings"""
 
-    classifying_threshold_str = ', '.join(['{:.2f}'.format(x)
-                                           for x in self.classifying_threshold])
+    classifying_threshold_str = str([y for y in [x for x in self.classifying_threshold]])
 
     settings = ('Graph: ' + self.graph_name + '\n'
                 + 'Accuracy: ' + str(test_accuracy_avg) + '\n'
@@ -454,7 +453,7 @@ class TFModel(object):
           dice_sum_sum.append(dice_sum)
 
           # Write final results summary to excel sheet and personal slack
-          classifying_threshold_str = [y for y in [x for x in self.classifying_threshold]]
+          classifying_threshold_str = str([y for y in [x for x in self.classifying_threshold]])
 
           #Write results to excel sheet
           tft_tools.write_tf_results(graph=self.graph_name,
