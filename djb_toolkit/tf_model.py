@@ -597,7 +597,7 @@ class TFModel(object):
                               feed_dict={
                                   x: batch,                                         # pylint: disable=C0330
                                   y_: ones((batch.shape[0],                         # pylint: disable=C0330
-                                            len(classifying_threshold))),      # pylint: disable=C0330
+                                            len(classifying_threshold))),           # pylint: disable=C0330
                                   keep_prob: 1.0,                                   # pylint: disable=C0330
                                   class_th: classifying_threshold
                               })
