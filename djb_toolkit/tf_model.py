@@ -357,44 +357,53 @@ class TFModel(object):
 
       #Train with `epochs` of batches
       for i in range(self.epochs):
-        batch = self.train.next_batch(self.batch_size)
+        train_sum_summary = []
+        test_sum_summary = []
+
+        for j in math.ceil(self.train.num_examples/self.batch_size):
+          batch = self.train.next_batch(self.batch_size)
+
+          summary, _ = sess.run([merged, train_step],
+                                feed_dict={
+                                    x: batch[0],
+                                    y_: batch[1],
+                                    keep_prob: self.training_keep_prob,
+                                    class_th: self.training_threshold
+                                })
+
+          train_sum_summary.append(summary)
+
+          if j % 100 == 0:
+            summary, train_accuracy = sess.run([merged, accuracy],
+                                               feed_dict={
+                                                   x: batch[0],
+                                                   y_: batch[1],
+                                                   keep_prob: 1.0,
+                                                   class_th: self.training_threshold
+                                               })
+
+            test_sum_summary.append(summary)
+
+        train_writer.add_summary(train_sum_summary, global_step=i)
+        test_writer.add_summary(test_sum_summary, global_step=i)
 
         #Logs
-        if i % 100 == 0:
-          summary, train_accuracy = sess.run([merged, accuracy],
-                                             feed_dict={
-                                                 x: batch[0],
-                                                 y_: batch[1],
-                                                 keep_prob: 1.0,
-                                                 class_th: self.training_threshold
-                                             })
+        if i > 0:
+          current_time = int(time())
 
-          test_writer.add_summary(summary, i)
-          if i > 0:
-            current_time = int(time())
+          avg_time_per_epoch = (current_time - start_time) / i
 
-            avg_time_per_epoch = (current_time - start_time) / i
+          expected_time_left = (self.epochs - i) * avg_time_per_epoch
 
-            expected_time_left = (self.epochs - i) * avg_time_per_epoch
+          expected_end_timestamp = current_time + expected_time_left
+          expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-            expected_end_timestamp = current_time + expected_time_left
-            expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-
-            print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp),
-                  end='\r', flush=True)
-
-        summary, _ = sess.run([merged, train_step],
-                              feed_dict={
-                                  x: batch[0],
-                                  y_: batch[1],
-                                  keep_prob: self.training_keep_prob,
-                                  class_th: self.training_threshold
-                              })
-
-        if i % 100 == 0:
-          train_writer.add_summary(summary, i)
+          print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp),
+                end='\r', flush=True)
 
         if (i + 1) % (self.epochs/10) == 0:
+          print('', end='\r', flush=True)
+
           _ = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt', global_step=(i+1))
 
           # Calculate post training test accuracy

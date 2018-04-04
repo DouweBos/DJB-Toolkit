@@ -105,7 +105,6 @@ class DataWrapper(object):
       self._epochs_completed += 1
 
       # Get the rest examples in this epoch
-      rest_num_examples = self._num_examples - start
       images_rest_part = self._images[start:self._num_examples]
       labels_rest_part = self._labels[start:self._num_examples]
 
@@ -117,14 +116,9 @@ class DataWrapper(object):
         self._labels = self.labels[perm]
 
       # Start next epoch
-      start = 0
-      self._index_in_epoch = batch_size - rest_num_examples
-      end = self._index_in_epoch
-      images_new_part = self._images[start:end]
-      labels_new_part = self._labels[start:end]
+      self._index_in_epoch = 0
 
-      return (np.concatenate((images_rest_part, images_new_part), axis=0),
-              np.concatenate((labels_rest_part, labels_new_part), axis=0))
+      return images_rest_part, labels_rest_part
 
     else:
       self._index_in_epoch += batch_size
