@@ -472,7 +472,7 @@ class TFModel(object):
                                      dice_score=str(dice_sum),
                                      alpha=self.alpha,
                                      training_dropout=self.training_keep_prob,
-                                     epochs=(i + 1) * ~self.skip_training,
+                                     epochs=(i + 1) * (not self.skip_training),
                                      batch_size=self.batch_size,
                                      num_fc=self.num_fc,
                                      image_width=self.image_size,
