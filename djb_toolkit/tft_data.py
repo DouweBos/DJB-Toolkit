@@ -317,6 +317,11 @@ def patient_patches(patient_nr,
     np.save(pat_images_cache_path, pat_data.images)
     np.save(pat_labels_cache_path, pat_data.labels)
 
+    unique_labels, label_counts = np.unique(np.argmax(pat_data.labels, axis=1),
+                                            return_counts=True)
+    counts = dict(zip(unique_labels, label_counts))
+    print("Patient {} label counts: {}".format(patient_nr, counts))
+
     return (pat_data.images, pat_data.labels)
 
 def patient_patches_2d(image_input_channels,
