@@ -244,7 +244,7 @@ def patients_patches(patients,
                      classification_mask,
                      patch_size,
                      axis,
-                     threads=1):
+                     threads=16):
   """Get all patches for given patients array"""
 
   print("Getting patches for {} patients".format(patients.shape[0]))
