@@ -368,13 +368,6 @@ def patient_patches_2d(image_input_channels,
   unique_labels, unique_labels_counts = np.unique(class_mask_image, return_counts=True)
   min_label_occurrence = np.min(unique_labels_counts)
 
-  # label_averages = list(map((lambda x: np.average(pat_patches[class_mask_image == x])),
-  #                           unique_labels))
-
-  # label_min_max = list(map((lambda x: (np.min(label_averages[x]),
-  #                                      np.max(label_averages[x]))),
-  #                          unique_labels))
-
   for label in unique_labels:
     current_patches = pat_patches[class_mask_image == label]
     current_labels = np.zeros((current_patches.shape[0], unique_labels.size))
