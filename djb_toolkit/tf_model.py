@@ -295,9 +295,6 @@ class TFModel(object):
     os.mkdir(checkpoint_dir)
 
     ## TODO:
-    ## Rewrite everything from here ##
-    ## FUCK MY LIFE :D ##
-    ## I feel like Luigi, refactor the refactor ##
 
     # Train the initialized graph
     testing_sum, dice_sum = self.__train_graph(sess=sess,
