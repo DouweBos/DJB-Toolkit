@@ -34,6 +34,7 @@ class TFModel(object):
   # pylint: disable=R0914
 
   def __init__(self,
+               last_name='Bos',
                log_dir=None,
                save_dir=None,
                restore_checkpoint=None,
@@ -84,7 +85,7 @@ class TFModel(object):
       selected_patches_dir = tft_tools.get_settings()['default_values']['tf_model']['selected_patch_dir']
 
     self.log_dir = log_dir
-    self.graph_name = self.__class__.__name__ + '_' + names.get_first_name()
+    self.graph_name = self.__class__.__name__ + '_' + names.get_first_name() + '_' + last_name
     self.save_dir = save_dir
     self.restore_checkpoint = restore_checkpoint
     self.skip_training = skip_training
