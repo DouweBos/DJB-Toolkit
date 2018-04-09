@@ -360,7 +360,7 @@ class TFModel(object):
         # train_sum_summary = []
         # test_sum_summary = []
 
-        for j in math.ceil(self.train.num_examples/self.batch_size):
+        for j in range(math.ceil(self.train.num_examples/self.batch_size)):
           batch = self.train.next_batch(self.batch_size)
 
           summary, _ = sess.run([merged, train_step],
