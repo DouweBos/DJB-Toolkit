@@ -13,7 +13,6 @@ import requests
 import numpy as np
 from numpy.random import choice as np_random_choice
 import openpyxl
-
 import djb_toolkit
 
 ## Data import

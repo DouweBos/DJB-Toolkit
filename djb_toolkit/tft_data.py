@@ -244,7 +244,7 @@ def patients_patches(patients,
                      classification_mask,
                      patch_size,
                      axis,
-                     threads=1):
+                     threads=16):
   """Get all patches for given patients array"""
 
   print("Getting patches for {} patients".format(patients.shape[0]))
@@ -317,6 +317,11 @@ def patient_patches(patient_nr,
     np.save(pat_images_cache_path, pat_data.images)
     np.save(pat_labels_cache_path, pat_data.labels)
 
+    unique_labels, label_counts = np.unique(np.argmax(pat_data.labels, axis=1),
+                                            return_counts=True)
+    counts = dict(zip(unique_labels, label_counts))
+    print("Patient {} label counts: {}".format(patient_nr, counts))
+
     return (pat_data.images, pat_data.labels)
 
 def patient_patches_2d(image_input_channels,
@@ -363,13 +368,6 @@ def patient_patches_2d(image_input_channels,
   unique_labels, unique_labels_counts = np.unique(class_mask_image, return_counts=True)
   min_label_occurrence = np.min(unique_labels_counts)
 
-  # label_averages = list(map((lambda x: np.average(pat_patches[class_mask_image == x])),
-  #                           unique_labels))
-
-  # label_min_max = list(map((lambda x: (np.min(label_averages[x]),
-  #                                      np.max(label_averages[x]))),
-  #                          unique_labels))
-
   for label in unique_labels:
     current_patches = pat_patches[class_mask_image == label]
     current_labels = np.zeros((current_patches.shape[0], unique_labels.size))
@@ -377,30 +375,38 @@ def patient_patches_2d(image_input_channels,
 
     indices = tft_tools.random_indices(current_patches.shape[0], min_label_occurrence)
 
+    current_patches = current_patches[indices]
+    current_labels = current_labels[indices]
+
+    current_patches = np.append(current_patches, np.flip(np.copy(current_patches), 1), 0)
+    current_labels = np.append(current_labels, np.copy(current_labels), 0)
+
+    current_patches = np.append(current_patches,
+                                np.rot90(np.copy(current_patches), 1, (2, 1)),
+                                axis=0)
+    current_labels = np.append(current_labels, np.copy(current_labels), 0)
+
+    current_patches = np.append(current_patches,
+                                np.rot90(np.copy(current_patches), 2, (2, 1)),
+                                axis=0)
+    current_labels = np.append(current_labels, np.copy(current_labels), 0)
+
+    current_patches = np.append(current_patches,
+                                np.rot90(np.copy(current_patches), 3, (2, 1)),
+                                axis=0)
+    current_labels = np.append(current_labels, np.copy(current_labels), 0)
+
     if not new_patches.size:
-      new_patches = current_patches[indices]
-      new_labels = current_labels[indices]
+      new_patches = current_patches
+      new_labels = current_labels
     else:
-      new_patches = np.append(new_patches, current_patches[indices], 0)
-      new_labels = np.append(new_labels, current_labels[indices], 0)
+      new_patches = np.append(new_patches, current_patches, 0)
+      new_labels = np.append(new_labels, current_labels, 0)
 
-    new_patches = np.append(new_patches, np.flip(current_patches[indices], 1), 0)
-    new_labels = np.append(new_labels, current_labels[indices], 0)
-
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 1, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
-
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 2, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
-
-    new_patches = np.append(new_patches,
-                            np.rot90(new_patches, 3, (2, 1)),
-                            axis=0)
-    new_labels = np.append(new_labels, np.copy(new_labels), 0)
+  unique_labels, label_counts = np.unique(np.argmax(new_labels, axis=1),
+                                          return_counts=True)
+  counts = dict(zip(unique_labels, label_counts))
+  print("Patient {} label counts: {}".format(pat_id, counts))
 
   print("2D Patches shape: {}".format(new_patches.shape))
   print("2D Labels shape: {}".format(new_labels.shape))

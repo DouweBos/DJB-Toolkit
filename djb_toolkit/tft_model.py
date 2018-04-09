@@ -123,6 +123,7 @@ def inception_module(input_values=None,
                         k_size=3,
                         stride=1,
                         name='{}_max_pool_3x3'.format(name))
+
       conv_1x1_4 = conv2d(input_values=m_pool,
                           input_features=input_features,
                           output_features=output_features,
