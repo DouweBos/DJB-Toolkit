@@ -11,6 +11,7 @@ from datetime import datetime
 from time import time
 
 import tensorflow as tf
+from tensorflow.core.framework import summary_pb2
 from numpy import ones, array, average, amax, zeros, mean, unique, transpose
 from numpy import concatenate, argmax, full, append
 from numpy import int16, float64
@@ -307,6 +308,7 @@ class TFModel(object):
                                                class_th=class_th,
                                                test_writer=test_writer,
                                                train_step=train_step,
+                                               loss=cross_entropy,
                                                train_writer=train_writer,
                                                checkpoint_dir=checkpoint_dir,
                                                saver=saver,
@@ -342,6 +344,7 @@ class TFModel(object):
                     class_th=None,
                     test_writer=None,
                     train_step=None,
+                    loss=None,
                     train_writer=None,
                     checkpoint_dir=None,
                     saver=None,
@@ -357,35 +360,69 @@ class TFModel(object):
 
       #Train with `epochs` of batches
       for i in range(self.epochs):
-        # train_sum_summary = []
-        # test_sum_summary = []
+        train_summary = None
+        test_summary = None
+
+        train_sum_accuracy = []
+        test_sum_accuracy = []
+
+        train_sum_loss = []
+        test_sum_loss = []
 
         for j in range(math.ceil(self.train.num_examples/self.batch_size)):
           batch = self.train.next_batch(self.batch_size)
 
-          summary, _ = sess.run([merged, train_step],
-                                feed_dict={
-                                    x: batch[0],
-                                    y_: batch[1],
-                                    keep_prob: self.training_keep_prob,
-                                    class_th: self.training_threshold
-                                })
-          # print(summary)
-          # train_sum_summary.append(summary)
+          summary, _, train_accuracy, train_loss = sess.run([merged,
+                                                        train_step,
+                                                        accuracy,
+                                                        loss],
+                                                       feed_dict={
+                                                           x: batch[0],
+                                                           y_: batch[1],
+                                                           keep_prob: self.training_keep_prob,
+                                                           class_th: self.training_threshold
+                                                       })
 
-          if j % 100 == 0:
-            summary, train_accuracy = sess.run([merged, accuracy],
-                                               feed_dict={
-                                                   x: batch[0],
-                                                   y_: batch[1],
-                                                   keep_prob: 1.0,
-                                                   class_th: self.training_threshold
-                                               })
+          train_summary = summary
 
-            # test_sum_summary.append(summary)
+          train_sum_accuracy.append(train_accuracy)
+          train_sum_loss.append(train_loss)
 
-        # train_writer.add_summary(train_sum_summary, global_step=i)
-        # test_writer.add_summary(test_sum_summary, global_step=i)
+          summary, test_accuracy, test_loss = sess.run([merged,
+                                                        accuracy,
+                                                        loss],
+                                                       feed_dict={
+                                                           x: batch[0],
+                                                           y_: batch[1],
+                                                           keep_prob: 1.0,
+                                                           class_th: self.training_threshold
+                                                       })
+
+          test_summary = summary
+
+          test_sum_accuracy.append(test_accuracy)
+          test_sum_loss.append(test_loss)
+
+        train_sum = summary_pb2.Summary()
+        train_sum.ParseFromString(train_summary)
+
+        test_sum = summary_pb2.Summary()
+        test_sum.ParseFromString(test_summary)
+
+        for val in train_sum.value:
+          if val.tag == 'accuracy_1':
+            val.simple_value = mean(array(train_sum_accuracy))
+          elif val.tag == 'cross_entropy':
+            val.simple_value = mean(array(train_sum_loss))
+
+        for val in test_sum.value:
+          if val.tag == 'accuracy_1':
+            val.simple_value = mean(array(test_sum_accuracy))
+          elif val.tag == 'cross_entropy':
+            val.simple_value = mean(array(test_sum_loss))
+
+        train_writer.add_summary(train_sum, global_step=i)
+        test_writer.add_summary(test_sum, global_step=i)
 
         #Logs
         if i > 0:
@@ -398,7 +435,7 @@ class TFModel(object):
           expected_end_timestamp = current_time + expected_time_left
           expected_end_timestamp = datetime.fromtimestamp(expected_end_timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
-          print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp),
+          print('Epoch %d\tAccuracy %g\tETA %s' % (i, test_accuracy, expected_end_timestamp),
                 end='\r', flush=True)
 
         if (i + 1) % (self.epochs/self.num_wis) == 0:
