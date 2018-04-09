@@ -55,6 +55,7 @@ class TFModel(object):
                epochs=400,
                batch_size=1000,
                num_fc=1024,
+               num_wis=10,
                post_proc_patch_size=5,
                post_proc_min_count=10,
                store_hard_patches=False,
@@ -103,6 +104,7 @@ class TFModel(object):
     self.epochs = epochs
     self.batch_size = batch_size
     self.num_fc = num_fc
+    self.num_wis = num_wis
     self.classifications = len(classifying_threshold[0])
     self.input_channel_config = input_channel_config
 
@@ -402,7 +404,7 @@ class TFModel(object):
           print('Epoch %d\tAccuracy %g\tETA %s' % (i, train_accuracy, expected_end_timestamp),
                 end='\r', flush=True)
 
-        if (i + 1) % (self.epochs/10) == 0:
+        if (i + 1) % (self.epochs/self.num_wis) == 0:
           print('', end='\r', flush=True)
 
           _ = saver.save(sess, join(checkpoint_dir, 'model') + '.ckpt', global_step=(i+1))
