@@ -357,8 +357,8 @@ class TFModel(object):
 
       #Train with `epochs` of batches
       for i in range(self.epochs):
-        train_sum_summary = []
-        test_sum_summary = []
+        # train_sum_summary = []
+        # test_sum_summary = []
 
         for j in math.ceil(self.train.num_examples/self.batch_size):
           batch = self.train.next_batch(self.batch_size)
@@ -370,8 +370,8 @@ class TFModel(object):
                                     keep_prob: self.training_keep_prob,
                                     class_th: self.training_threshold
                                 })
-
-          train_sum_summary.append(summary)
+          # print(summary)
+          # train_sum_summary.append(summary)
 
           if j % 100 == 0:
             summary, train_accuracy = sess.run([merged, accuracy],
@@ -382,10 +382,10 @@ class TFModel(object):
                                                    class_th: self.training_threshold
                                                })
 
-            test_sum_summary.append(summary)
+            # test_sum_summary.append(summary)
 
-        train_writer.add_summary(train_sum_summary, global_step=i)
-        test_writer.add_summary(test_sum_summary, global_step=i)
+        # train_writer.add_summary(train_sum_summary, global_step=i)
+        # test_writer.add_summary(test_sum_summary, global_step=i)
 
         #Logs
         if i > 0:
