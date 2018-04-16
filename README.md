@@ -1,6 +1,8 @@
 # DJB-Toolkit
 DJB Tensorflow Toolkit - Collection of methods and classes for easier TF CNN implementations
 
+
+## Message from the author
 This project was written for my Thesis research project based on TF 1.4.0. By now most of the CNN helper methods and the TFModel class can and should be replaced with TF 1.7.0's own `tf.nn` methods and the TF Estimator.
 
 ### Development
