@@ -39,7 +39,7 @@ def dice(gold_standard, network_output):
   dice_coef = intersection / (np.sum(gold_standard) + np.sum(network_output))
   return dice_coef
 
-def remove_noice_classifications_2d(post_proc_patch_size, post_proc_min_count, matrix):
+def remove_noise_classifications_2d(post_proc_patch_size, post_proc_min_count, matrix):
   """Remove single prediction labels in given matrix if sum in given
      size is less than given min count"""
 
