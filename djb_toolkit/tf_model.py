@@ -705,7 +705,7 @@ class TFModel(object):
       output_pred = output_pred.astype(int16)
       output_prob = output_prob.astype(float64)
 
-      output_pred = tft_tools.remove_noice_classifications_2d(self.post_proc_patch_size,
+      output_pred = tft_tools.remove_noise_classifications_2d(self.post_proc_patch_size,
                                                               self.post_proc_min_count,
                                                               output_pred)
 
@@ -889,7 +889,7 @@ class TFModel(object):
 
       output_pred = output_pred.astype(int16)
 
-      # output_pred = tft_tools.remove_noice_classifications_3d(self.post_proc_patch_size,
+      # output_pred = tft_tools.remove_noise_classifications_3d(self.post_proc_patch_size,
       #                                                         self.post_proc_min_count,
       #                                                         output_pred)
 
